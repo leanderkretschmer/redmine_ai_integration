@@ -26,22 +26,29 @@ class AiRewriteController < ApplicationController
       system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
       session_id = params[:session_id] || generate_session_id
       
+      # Originaltext SOFORT speichern, bevor Streaming startet
+      Rails.logger.info "Rewrite Stream - Speichere Originaltext für Session: #{session_id}"
+      ensure_original_version_saved(text, session_id)
+      
       accumulated_text = ''
       
       call_ollama_stream(text, system_prompt, settings, session_id) do |chunk|
         accumulated_text += chunk
-        # Jeden Chunk als SSE-Event senden
+        # Jeden Chunk als SSE-Event senden und sofort flushen
         response.stream.write("data: #{JSON.generate({ text: chunk })}\n\n")
+        response.stream.flush
       end
       
       # Finales Event mit Version-ID
       version_id = save_text_version(text, accumulated_text, session_id)
       response.stream.write("data: #{JSON.generate({ done: true, version_id: version_id })}\n\n")
+      response.stream.flush
       
     rescue => e
       Rails.logger.error "AI Rewrite Stream Fehler: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
       response.stream.write("data: #{JSON.generate({ error: e.message })}\n\n")
+      response.stream.flush
     ensure
       response.stream.close
     end
@@ -55,8 +62,14 @@ class AiRewriteController < ApplicationController
       provider = Setting.plugin_redmine_ai_integration['ai_provider']
       improved_text = call_ai_api(text, provider)
       
+      # Session-ID für Version-Speicherung
+      session_id = params[:session_id] || generate_session_id
+      
+      # Originaltext SOFORT speichern
+      ensure_original_version_saved(text, session_id)
+      
       # Version speichern
-      version_id = save_text_version(text, improved_text)
+      version_id = save_text_version(text, improved_text, session_id)
       
       render json: { 
         improved_text: improved_text,
@@ -501,6 +514,30 @@ class AiRewriteController < ApplicationController
     end
   end
 
+  def ensure_original_version_saved(original_text, session_id)
+    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
+    
+    # Prüfen ob bereits eine Datei existiert
+    if File.exist?(versions_file)
+      versions = JSON.parse(File.read(versions_file))
+      # Prüfen ob bereits eine Original-Version existiert
+      return if versions.any? { |v| v['id'] == "#{session_id}_original" }
+    else
+      versions = []
+    end
+    
+    # Original-Version hinzufügen
+    versions.unshift({
+      id: "#{session_id}_original",
+      original_text: original_text,
+      improved_text: original_text,
+      timestamp: Time.now.to_i - 1
+    })
+    
+    Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text"
+    File.write(versions_file, JSON.pretty_generate(versions))
+  end
+
   def save_text_version(original_text, improved_text, session_id = nil)
     session_id ||= params[:session_id] || generate_session_id
     version_id = "#{session_id}_#{Time.now.to_i}"
@@ -516,15 +553,15 @@ class AiRewriteController < ApplicationController
       []
     end
     
-    # Wenn es die erste Version ist, Originaltext speichern
-    if versions.empty?
+    # Wenn es die erste Version ist, Originaltext speichern (falls nicht bereits gespeichert)
+    if versions.empty? || !versions.any? { |v| v['id'] == "#{session_id}_original" }
       Rails.logger.info "Save Text Version - First version, saving original text"
-      versions << {
+      versions.unshift({
         id: "#{session_id}_original",
         original_text: original_text,
         improved_text: original_text,
         timestamp: Time.now.to_i - 1
-      }
+      })
     end
     
     versions << {

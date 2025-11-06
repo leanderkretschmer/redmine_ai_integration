@@ -245,37 +245,46 @@
             return;
           }
 
+          // Decode chunk und zum Buffer hinzufügen
           buffer += decoder.decode(value, { stream: true });
+          
+          // Verarbeite alle vollständigen Zeilen
           const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          buffer = lines.pop() || ''; // Letzte unvollständige Zeile bleibt im Buffer
 
           lines.forEach(line => {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data.trim()) {
+              const data = line.slice(6).trim(); // Entferne "data: " und Whitespace
+              if (data) {
                 try {
                   const parsed = JSON.parse(data);
+                  
                   if (parsed.error) {
                     throw new Error(parsed.error);
                   }
+                  
                   if (parsed.text) {
                     accumulatedText += parsed.text;
+                    // Textarea sofort aktualisieren
                     textarea.value = accumulatedText;
                     // Scroll zum Ende
                     textarea.scrollTop = textarea.scrollHeight;
                   }
+                  
                   if (parsed.done && parsed.version_id) {
                     currentVersionId = parsed.version_id;
                   }
                 } catch (e) {
-                  if (e.message !== 'Unexpected end of JSON input') {
-                    console.error('Parse error:', e);
+                  // Ignoriere JSON-Parse-Fehler für unvollständige Daten
+                  if (e.message !== 'Unexpected end of JSON input' && !e.message.includes('JSON')) {
+                    console.error('Parse error:', e, 'Data:', data);
                   }
                 }
               }
             }
           });
 
+          // Nächsten Chunk lesen
           readStream();
         }).catch(error => {
           setButtonLoading(rewriteButton, false);
