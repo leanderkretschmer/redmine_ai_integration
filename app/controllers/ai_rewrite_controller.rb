@@ -198,6 +198,8 @@ class AiRewriteController < ApplicationController
       uri = URI("#{url}/api/v1/chat/completions")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == 'https'
+      http.open_timeout = 30
+      http.read_timeout = 120
 
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
@@ -223,8 +225,21 @@ class AiRewriteController < ApplicationController
     else
       # Direkte Ollama API verwenden
       url = settings['ollama_url'] || 'http://localhost:11434'
+      Rails.logger.info "Ollama Call - URL: #{url}, Model: #{settings['ollama_model']}"
+      
+      # URL normalisieren (ohne trailing slash)
+      url = url.chomp('/')
+      
+      # SSL automatisch erkennen
+      use_ssl = url.start_with?('https://')
+      
       uri = URI("#{url}/api/generate")
       http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = use_ssl
+      http.open_timeout = 30
+      http.read_timeout = 120
+
+      Rails.logger.info "Ollama Call - Full URI: #{uri}, Host: #{uri.host}, Port: #{uri.port}, SSL: #{use_ssl}"
 
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
@@ -235,14 +250,26 @@ class AiRewriteController < ApplicationController
         stream: false
       }
 
+      Rails.logger.info "Ollama Call - Sending request with model: #{body[:model]}"
       request.body = body.to_json
-      response = http.request(request)
+      
+      begin
+        response = http.request(request)
+        Rails.logger.info "Ollama Call - Response Code: #{response.code}"
 
-      if response.code == '200'
-        result = JSON.parse(response.body)
-        result['response'].strip
-      else
-        raise "Ollama API Fehler: #{response.code} - #{response.body}"
+        if response.code == '200'
+          result = JSON.parse(response.body)
+          result['response'].strip
+        else
+          raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
+        end
+      rescue Timeout::Error => e
+        Rails.logger.error "Ollama Call - Timeout: #{e.message}"
+        raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
+      rescue => e
+        Rails.logger.error "Ollama Call - Error: #{e.class} - #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        raise "Ollama Verbindungsfehler: #{e.message}"
       end
     end
   end
@@ -478,14 +505,17 @@ class AiRewriteController < ApplicationController
       url = settings['ollama_openwebui_url'] || 'http://localhost:3000'
       Rails.logger.info "OpenWebUI Test - URL: #{url}"
       
+      # URL normalisieren (ohne trailing slash)
+      url = url.chomp('/')
+      
       begin
         uri = URI("#{url}/api/v1/models")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == 'https'
-        http.open_timeout = 5
-        http.read_timeout = 5
+        http.open_timeout = 15
+        http.read_timeout = 15
 
-        Rails.logger.info "OpenWebUI Test - Sende Request an: #{uri}"
+        Rails.logger.info "OpenWebUI Test - Sende Request an: #{uri}, Host: #{uri.host}, Port: #{uri.port}"
         request = Net::HTTP::Get.new(uri)
         request['Content-Type'] = 'application/json'
         response = http.request(request)
@@ -502,11 +532,15 @@ class AiRewriteController < ApplicationController
           { success: false, error: error_msg }
         end
       rescue Timeout::Error => e
-        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout (Server erreichbar, aber Antwort dauert zu lange)"
+        Rails.logger.error "OpenWebUI Test - #{error_msg}"
+        { success: false, error: error_msg }
+      rescue SocketError => e
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Netzwerkfehler - #{e.message}"
         Rails.logger.error "OpenWebUI Test - #{error_msg}"
         { success: false, error: error_msg }
       rescue => e
-        error_msg = "Verbindung fehlgeschlagen: #{e.message}"
+        error_msg = "Verbindung fehlgeschlagen: #{e.class} - #{e.message}"
         Rails.logger.error "OpenWebUI Test - #{error_msg}"
         Rails.logger.error e.backtrace.join("\n")
         { success: false, error: error_msg }
@@ -516,16 +550,36 @@ class AiRewriteController < ApplicationController
       url = settings['ollama_url'] || 'http://localhost:11434'
       Rails.logger.info "Ollama Test - URL: #{url}"
       
+      # URL normalisieren (ohne trailing slash)
+      url = url.chomp('/')
+      
+      # SSL automatisch erkennen
+      use_ssl = url.start_with?('https://')
+      
       begin
+        # Zuerst einen einfachen Health-Check versuchen
+        health_uri = URI(url)
+        health_http = Net::HTTP.new(health_uri.host, health_uri.port)
+        health_http.use_ssl = use_ssl
+        health_http.open_timeout = 10
+        health_http.read_timeout = 10
+        
+        Rails.logger.info "Ollama Test - Health Check an: #{health_uri}, SSL: #{use_ssl}"
+        health_request = Net::HTTP::Get.new(health_uri)
+        health_response = health_http.request(health_request)
+        Rails.logger.info "Ollama Test - Health Check Response: #{health_response.code}"
+        
+        # Dann die Models-API testen
         uri = URI("#{url}/api/tags")
         http = Net::HTTP.new(uri.host, uri.port)
-        http.open_timeout = 5
-        http.read_timeout = 5
+        http.use_ssl = use_ssl
+        http.open_timeout = 15
+        http.read_timeout = 15
 
-        Rails.logger.info "Ollama Test - Sende Request an: #{uri}"
+        Rails.logger.info "Ollama Test - Sende Request an: #{uri}, Host: #{uri.host}, Port: #{uri.port}, SSL: #{use_ssl}"
         request = Net::HTTP::Get.new(uri)
         response = http.request(request)
-        Rails.logger.info "Ollama Test - Response Code: #{response.code}"
+        Rails.logger.info "Ollama Test - Response Code: #{response.code}, Body length: #{response.body.length}"
 
         if response.code == '200'
           models_data = JSON.parse(response.body)
@@ -538,11 +592,16 @@ class AiRewriteController < ApplicationController
           { success: false, error: error_msg }
         end
       rescue Timeout::Error => e
-        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout (Server erreichbar, aber Antwort dauert zu lange)"
+        Rails.logger.error "Ollama Test - #{error_msg}"
+        Rails.logger.error "Ollama Test - Host: #{uri.host rescue 'unknown'}, Port: #{uri.port rescue 'unknown'}"
+        { success: false, error: error_msg }
+      rescue SocketError => e
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Netzwerkfehler - #{e.message}"
         Rails.logger.error "Ollama Test - #{error_msg}"
         { success: false, error: error_msg }
       rescue => e
-        error_msg = "Verbindung fehlgeschlagen: #{e.message}"
+        error_msg = "Verbindung fehlgeschlagen: #{e.class} - #{e.message}"
         Rails.logger.error "Ollama Test - #{error_msg}"
         Rails.logger.error e.backtrace.join("\n")
         { success: false, error: error_msg }
