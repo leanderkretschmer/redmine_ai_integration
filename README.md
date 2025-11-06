@@ -15,7 +15,7 @@ Ein Redmine 6 Plugin, das KI-gestützte Textverbesserung für Kommentare und Tic
 
 1. Kopiere das Plugin-Verzeichnis nach `redmine/plugins/redmine_ai_integration`
 2. Starte Redmine neu oder führe `bundle exec rake redmine:plugins:migrate RAILS_ENV=production` aus
-3. Gehe zu Administration → Plugins → AI Integration Einstellungen
+3. Gehe zu Administration → Plugins → Redmine AI Integration Plugin → Configuration
 4. Konfiguriere deinen bevorzugten KI-Provider und API-Keys
 
 ## Konfiguration

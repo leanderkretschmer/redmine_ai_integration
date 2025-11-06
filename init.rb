@@ -1,8 +1,8 @@
 Redmine::Plugin.register :redmine_ai_integration do
   name 'Redmine AI Integration Plugin'
-  author 'Redmine AI Integration'
+  author 'Leander Kretschmer'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '0.0.3'
+  version '0.0.4'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
@@ -17,11 +17,7 @@ Redmine::Plugin.register :redmine_ai_integration do
     'claude_api_key' => '',
     'claude_model' => 'claude-3-sonnet-20240229',
     'system_prompt' => 'Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrigiere Rechtschreib- und Grammatikfehler, verbessere die Struktur und mache ihn professioneller, während der ursprüngliche Sinn und Inhalt erhalten bleibt. Antworte nur mit dem verbesserten Text, ohne zusätzliche Erklärungen.'
-  }, partial: 'settings/ai_integration_settings'
-
-  # Assets registrieren
-  menu :admin_menu, :ai_integration_settings, { controller: 'settings', action: 'plugin', id: 'redmine_ai_integration' }, 
-       caption: :label_ai_integration_settings, after: :plugins
+  }, partial: 'settings/settings'
 end
 
 # Assets laden
