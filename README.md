@@ -50,7 +50,7 @@ Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrig
 2. Schreibe oder füge Text ein
 3. Klicke auf den "Rewrite"-Button
 4. Warte auf die Verbesserung
-5. Nutze die Navigations-Buttons (◀ ▶) um zwischen Versionen zu wechseln
+5. Nutze die Navigations-Buttons (< >) um zwischen Versionen zu wechseln
 6. Nutze "Rückgängig" um zum Originaltext zurückzukehren
 7. Speichere den Kommentar oder das Ticket
 
@@ -58,7 +58,7 @@ Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrig
 
 - Jeder Rewrite erstellt eine neue Version
 - Alle Versionen bleiben erhalten, bis der Kommentar/Ticket gespeichert wird
-- Navigation zwischen Versionen mit ◀ (vorherige) und ▶ (nächste)
+- Navigation zwischen Versionen mit < (vorherige) und > (nächste)
 - Originaltext kann jederzeit wiederhergestellt werden
 
 ## Technische Details

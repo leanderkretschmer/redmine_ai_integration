@@ -1,7 +1,7 @@
 class AiRewriteController < ApplicationController
   before_action :require_login
-  before_action :check_settings
-  skip_before_action :verify_authenticity_token, only: [:rewrite, :save_version, :get_version, :clear_versions]
+  before_action :check_settings, except: [:test_connection]
+  skip_before_action :verify_authenticity_token, only: [:rewrite, :save_version, :get_version, :clear_versions, :test_connection]
 
   def rewrite
     text = params[:text]
@@ -62,6 +62,32 @@ class AiRewriteController < ApplicationController
     session_id = params[:session_id]
     clear_text_versions(session_id)
     render json: { success: true }
+  end
+
+  def test_connection
+    begin
+      settings = Setting.plugin_redmine_ai_integration
+      provider = params[:provider] || settings['ai_provider']
+      
+      case provider
+      when 'openai'
+        result = test_openai_connection(settings)
+      when 'ollama'
+        result = test_ollama_connection(settings)
+      when 'gemini'
+        result = test_gemini_connection(settings)
+      when 'claude'
+        result = test_claude_connection(settings)
+      else
+        render json: { error: "Unbekannter Provider: #{provider}" }, status: 400
+        return
+      end
+      
+      render json: result
+    rescue => e
+      Rails.logger.error "Test Connection Fehler: #{e.message}"
+      render json: { success: false, error: e.message }, status: 500
+    end
   end
 
   private
@@ -346,6 +372,122 @@ class AiRewriteController < ApplicationController
   def generate_session_id
     user_id = User.current&.id || 'anonymous'
     "#{user_id}_#{Time.now.to_i}_#{SecureRandom.hex(8)}"
+  end
+
+  def test_openai_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    if settings['openai_api_key'].blank?
+      return { success: false, error: 'OpenAI API Key nicht konfiguriert' }
+    end
+
+    uri = URI('https://api.openai.com/v1/models')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Get.new(uri)
+    request['Authorization'] = "Bearer #{settings['openai_api_key']}"
+
+    response = http.request(request)
+
+    if response.code == '200'
+      models = JSON.parse(response.body)['data'].map { |m| m['id'] }.select { |id| id.start_with?('gpt') }
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+    end
+  end
+
+  def test_ollama_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    url = settings['ollama_url'] || 'http://localhost:11434'
+    
+    begin
+      uri = URI("#{url}/api/tags")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.open_timeout = 5
+      http.read_timeout = 5
+
+      request = Net::HTTP::Get.new(uri)
+      response = http.request(request)
+
+      if response.code == '200'
+        models_data = JSON.parse(response.body)
+        models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+        { success: true, message: 'Verbindung erfolgreich', models: models }
+      else
+        { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+      end
+    rescue Timeout::Error
+      { success: false, error: "Verbindung zu #{url} fehlgeschlagen: Timeout" }
+    rescue => e
+      { success: false, error: "Verbindung fehlgeschlagen: #{e.message}" }
+    end
+  end
+
+  def test_gemini_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    if settings['gemini_api_key'].blank?
+      return { success: false, error: 'Gemini API Key nicht konfiguriert' }
+    end
+
+    api_key = settings['gemini_api_key']
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/models?key=#{api_key}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Get.new(uri)
+    response = http.request(request)
+
+    if response.code == '200'
+      models_data = JSON.parse(response.body)
+      models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+    end
+  end
+
+  def test_claude_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    if settings['claude_api_key'].blank?
+      return { success: false, error: 'Claude API Key nicht konfiguriert' }
+    end
+
+    uri = URI('https://api.anthropic.com/v1/messages')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Post.new(uri)
+    request['Content-Type'] = 'application/json'
+    request['x-api-key'] = settings['claude_api_key']
+    request['anthropic-version'] = '2023-06-01'
+
+    body = {
+      model: settings['claude_model'] || 'claude-3-sonnet-20240229',
+      max_tokens: 10,
+      messages: [{
+        role: 'user',
+        content: 'test'
+      }]
+    }
+
+    request.body = body.to_json
+    response = http.request(request)
+
+    if response.code == '200'
+      { success: true, message: 'Verbindung erfolgreich' }
+    else
+      error_body = response.body[0..500]
+      { success: false, error: "API Fehler: #{response.code} - #{error_body}" }
+    end
   end
 end
 

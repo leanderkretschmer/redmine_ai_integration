@@ -16,19 +16,6 @@
   transition: all 0.3s ease;
 }
 
-.ai-rewrite-button:hover {
-  background: #357abd !important;
-}
-
-.ai-undo-button:hover {
-  background: #c0392b !important;
-}
-
-.ai-prev-button:hover:not(:disabled),
-.ai-next-button:hover:not(:disabled) {
-  background: #7f8c8d !important;
-}
-
 .ai-rewrite-button:disabled,
 .ai-undo-button:disabled,
 .ai-prev-button:disabled,

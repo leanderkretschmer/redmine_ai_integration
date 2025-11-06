@@ -72,6 +72,16 @@
       <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
       <em class="info">Definiert, wie der Text verbessert werden soll. Der Text wird als Variable übergeben.</em>
     </p>
+
+    <h3>Verbindung testen</h3>
+    <p>
+      <button type="button" id="test_connection_btn" class="button">Verbindung testen</button>
+      <span id="test_connection_status" style="margin-left: 10px;"></span>
+    </p>
+    <div id="test_connection_result" style="margin-top: 10px; display: none;">
+      <div id="test_connection_message"></div>
+      <div id="test_connection_models" style="margin-top: 10px;"></div>
+    </div>
   </div>
 
   <%= submit_tag l(:button_save) %>
@@ -92,6 +102,79 @@
       if (selectedDiv) {
         selectedDiv.style.display = 'block';
       }
+    });
+
+    // Test Connection Button
+    const testBtn = document.getElementById('test_connection_btn');
+    const statusSpan = document.getElementById('test_connection_status');
+    const resultDiv = document.getElementById('test_connection_result');
+    const messageDiv = document.getElementById('test_connection_message');
+    const modelsDiv = document.getElementById('test_connection_models');
+
+    testBtn.addEventListener('click', function() {
+      const provider = providerSelect.value;
+      testBtn.disabled = true;
+      statusSpan.textContent = 'Teste Verbindung...';
+      statusSpan.style.color = '#666';
+      resultDiv.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('provider', provider);
+
+      fetch('/ai_rewrite/test_connection', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => {
+            throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+          });
+        }
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json();
+        } else {
+          return response.text().then(text => {
+            throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
+          });
+        }
+      })
+      .then(data => {
+        testBtn.disabled = false;
+        resultDiv.style.display = 'block';
+
+        if (data.success) {
+          statusSpan.textContent = 'Erfolgreich';
+          statusSpan.style.color = 'green';
+          messageDiv.innerHTML = '<strong style="color: green;">' + (data.message || 'Verbindung erfolgreich') + '</strong>';
+          
+          if (data.models && data.models.length > 0) {
+            modelsDiv.innerHTML = '<strong>Verfügbare Modelle:</strong><ul style="margin-top: 5px; margin-left: 20px;">' +
+              data.models.map(function(model) {
+                return '<li>' + model + '</li>';
+              }).join('') + '</ul>';
+          } else {
+            modelsDiv.innerHTML = '';
+          }
+        } else {
+          statusSpan.textContent = 'Fehler';
+          statusSpan.style.color = 'red';
+          messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + (data.error || 'Unbekannter Fehler');
+          modelsDiv.innerHTML = '';
+        }
+      })
+      .catch(error => {
+        testBtn.disabled = false;
+        statusSpan.textContent = 'Fehler';
+        statusSpan.style.color = 'red';
+        resultDiv.style.display = 'block';
+        messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + error.message;
+        modelsDiv.innerHTML = '';
+      });
     });
   });
 </script>

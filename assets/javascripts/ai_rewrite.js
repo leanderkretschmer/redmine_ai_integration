@@ -31,30 +31,29 @@
     // Rewrite Button
     const rewriteButton = document.createElement('button');
     rewriteButton.type = 'button';
-    rewriteButton.className = 'ai-rewrite-button';
-    rewriteButton.innerHTML = '<span class="ai-rewrite-icon">✏️</span> <span class="ai-rewrite-text">Rewrite</span>';
-    rewriteButton.style.cssText = 'padding: 5px 10px; background: #4a90e2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;';
+    rewriteButton.className = 'ai-rewrite-button button';
+    rewriteButton.innerHTML = '<span class="ai-rewrite-icon"></span> <span class="ai-rewrite-text">Rewrite</span>';
     
     // Undo Button (initial versteckt)
     const undoButton = document.createElement('button');
     undoButton.type = 'button';
-    undoButton.className = 'ai-undo-button';
-    undoButton.innerHTML = '<span class="ai-undo-icon">↶</span> <span class="ai-undo-text">Rückgängig</span>';
-    undoButton.style.cssText = 'padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; display: none; align-items: center; gap: 5px;';
+    undoButton.className = 'ai-undo-button button';
+    undoButton.innerHTML = '<span class="ai-undo-icon"></span> <span class="ai-undo-text">Rückgängig</span>';
+    undoButton.style.cssText = 'display: none;';
 
     // Navigation Buttons (initial versteckt)
     const prevButton = document.createElement('button');
     prevButton.type = 'button';
-    prevButton.className = 'ai-prev-button';
-    prevButton.innerHTML = '◀';
-    prevButton.style.cssText = 'padding: 5px 8px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; display: none;';
+    prevButton.className = 'ai-prev-button button';
+    prevButton.innerHTML = '&lt;';
+    prevButton.style.cssText = 'display: none;';
     prevButton.title = 'Vorherige Version';
 
     const nextButton = document.createElement('button');
     nextButton.type = 'button';
-    nextButton.className = 'ai-next-button';
-    nextButton.innerHTML = '▶';
-    nextButton.style.cssText = 'padding: 5px 8px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; display: none;';
+    nextButton.className = 'ai-next-button button';
+    nextButton.innerHTML = '&gt;';
+    nextButton.style.cssText = 'display: none;';
     nextButton.title = 'Nächste Version';
 
     buttonGroup.appendChild(rewriteButton);
@@ -123,7 +122,21 @@
         'X-CSRF-Token': getCSRFToken()
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+        });
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        return response.text().then(text => {
+          throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
+        });
+      }
+    })
     .then(data => {
       setButtonLoading(rewriteButton, false);
       rewriteButton.disabled = false;
@@ -138,7 +151,7 @@
       currentVersionId = data.version_id;
 
       // Buttons aktualisieren
-      undoButton.style.display = 'flex';
+      undoButton.style.display = 'inline-block';
       prevButton.style.display = 'inline-block';
       nextButton.style.display = 'inline-block';
       
@@ -270,11 +283,11 @@
     const text = button.querySelector('.ai-rewrite-text');
     
     if (loading) {
-      icon.innerHTML = '⏳';
+      icon.innerHTML = '...';
       icon.classList.add('ai-spinning');
       text.textContent = 'Verarbeite...';
     } else {
-      icon.innerHTML = '✏️';
+      icon.innerHTML = '';
       icon.classList.remove('ai-spinning');
       text.textContent = 'Rewrite';
     }
