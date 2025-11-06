@@ -2,7 +2,7 @@ Redmine::Plugin.register :redmine_ai_integration do
   name 'Redmine AI Integration Plugin'
   author 'Redmine AI Integration'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '0.0.2'
+  version '0.0.3'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
