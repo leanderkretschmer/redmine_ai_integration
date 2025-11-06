@@ -235,6 +235,9 @@
             versionHistory.canGoNext = false;
             updateNavigationButtons(prevButton, nextButton);
 
+            // Debug-Logging
+            console.log('Streaming abgeschlossen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
+
             // Event für Textänderungen durch Benutzer
             textarea.addEventListener('input', function onInput() {
               if (currentVersionId) {
@@ -273,6 +276,7 @@
                   
                   if (parsed.done && parsed.version_id) {
                     currentVersionId = parsed.version_id;
+                    console.log('Version ID gesetzt:', currentVersionId);
                   }
                 } catch (e) {
                   // Ignoriere JSON-Parse-Fehler für unvollständige Daten
@@ -306,7 +310,10 @@
 
   // Rückgängig machen
   function handleUndo(textarea, rewriteButton, undoButton, prevButton, nextButton) {
+    console.log('Undo aufgerufen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
+    
     if (!currentVersionId || !currentSessionId) {
+      console.error('Fehlende IDs:', { currentVersionId, currentSessionId });
       alert('Keine Version zum Rückgängig machen verfügbar.');
       return;
     }
@@ -323,6 +330,7 @@
     .then(response => {
       if (!response.ok) {
         return response.text().then(text => {
+          console.error('HTTP Fehler:', response.status, text);
           throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
         });
       }
@@ -336,6 +344,8 @@
       }
     })
     .then(data => {
+      console.log('Undo Response:', data);
+      
       if (data.error) {
         alert('Fehler: ' + data.error);
         console.error('Undo Error:', data);

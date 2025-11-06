@@ -281,9 +281,14 @@ class AiRewriteController < ApplicationController
       begin
         http.request(request) do |response|
           if response.code == '200'
+            buffer = ''
             response.read_body do |chunk|
-              # OpenWebUI sendet Server-Sent Events
-              chunk.to_s.split("\n").each do |line|
+              buffer += chunk.to_s
+              # Verarbeite alle vollständigen Zeilen
+              lines = buffer.split("\n")
+              buffer = lines.pop || '' # Letzte unvollständige Zeile bleibt im Buffer
+              
+              lines.each do |line|
                 next if line.empty? || !line.start_with?('data: ')
                 data = line[6..-1] # Entferne "data: "
                 next if data == '[DONE]'
@@ -293,6 +298,20 @@ class AiRewriteController < ApplicationController
                   block.call(content) if content
                 rescue JSON::ParserError
                   # Ignoriere ungültige JSON-Zeilen
+                end
+              end
+            end
+            # Verarbeite verbleibenden Buffer
+            if buffer.present?
+              buffer.split("\n").each do |line|
+                next if line.empty? || !line.start_with?('data: ')
+                data = line[6..-1]
+                next if data == '[DONE]'
+                begin
+                  parsed = JSON.parse(data)
+                  content = parsed.dig('choices', 0, 'delta', 'content')
+                  block.call(content) if content
+                rescue JSON::ParserError
                 end
               end
             end
@@ -332,9 +351,14 @@ class AiRewriteController < ApplicationController
       begin
         http.request(request) do |response|
           if response.code == '200'
+            buffer = ''
             response.read_body do |chunk|
-              # Ollama sendet JSON-Zeilen
-              chunk.to_s.split("\n").each do |line|
+              buffer += chunk.to_s
+              # Verarbeite alle vollständigen Zeilen
+              lines = buffer.split("\n")
+              buffer = lines.pop || '' # Letzte unvollständige Zeile bleibt im Buffer
+              
+              lines.each do |line|
                 next if line.empty?
                 begin
                   parsed = JSON.parse(line)
@@ -342,6 +366,18 @@ class AiRewriteController < ApplicationController
                   block.call(content) if content
                 rescue JSON::ParserError
                   # Ignoriere ungültige JSON-Zeilen
+                end
+              end
+            end
+            # Verarbeite verbleibenden Buffer
+            if buffer.present?
+              buffer.split("\n").each do |line|
+                next if line.empty?
+                begin
+                  parsed = JSON.parse(line)
+                  content = parsed['response']
+                  block.call(content) if content
+                rescue JSON::ParserError
                 end
               end
             end
