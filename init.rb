@@ -2,9 +2,9 @@ Redmine::Plugin.register :redmine_ai_rewrite do
   name 'Redmine AI Rewrite Plugin'
   author 'Redmine AI Integration'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '1.0.0'
-  url ''
-  author_url ''
+  version '0.0.1'
+  url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
+  author_url 'https://github.com/leanderkretschmer'
 
   settings default: {
     'ai_provider' => 'openai',
