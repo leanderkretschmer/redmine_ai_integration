@@ -108,16 +108,8 @@
       currentSessionId = generateSessionId();
     }
 
-    // Prüfen ob Streaming unterstützt wird (nur für Ollama)
-    const useStreaming = true; // Immer Streaming verwenden wenn verfügbar
-
-    if (useStreaming) {
-      // Streaming verwenden
-      handleRewriteStream(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText);
-    } else {
-      // Normale API verwenden
-      handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText);
-    }
+    // Immer normale API verwenden (kein Streaming)
+    handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText);
   }
 
   // Normale Rewrite-Funktion (ohne Streaming)
@@ -162,6 +154,9 @@
       // Verbesserten Text einfügen
       textarea.value = data.improved_text;
       currentVersionId = data.version_id;
+      
+      // Debug-Logging
+      console.log('Rewrite abgeschlossen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
 
       // Buttons aktualisieren
       undoButton.style.display = 'inline-block';
@@ -180,125 +175,6 @@
         }
         textarea.removeEventListener('input', onInput);
       });
-    })
-    .catch(error => {
-      setButtonLoading(rewriteButton, false);
-      rewriteButton.disabled = false;
-      console.error('Fehler:', error);
-      alert('Fehler beim Verbessern des Textes: ' + error.message);
-    });
-  }
-
-  // Streaming Rewrite-Funktion
-  function handleRewriteStream(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText) {
-    const url = '/ai_rewrite/rewrite_stream';
-    
-    const formData = new FormData();
-    formData.append('text', originalText);
-    formData.append('session_id', currentSessionId);
-
-    // Textarea leeren für Live-Update
-    textarea.value = '';
-
-    fetch(url, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-CSRF-Token': getCSRFToken()
-      }
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.text().then(text => {
-          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
-        });
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulatedText = '';
-
-      function readStream() {
-        reader.read().then(({ done, value }) => {
-          if (done) {
-            setButtonLoading(rewriteButton, false);
-            rewriteButton.disabled = false;
-
-            // Buttons aktualisieren
-            undoButton.style.display = 'inline-block';
-            prevButton.style.display = 'inline-block';
-            nextButton.style.display = 'inline-block';
-            
-            // Navigation-Status aktualisieren
-            versionHistory.canGoPrev = true;
-            versionHistory.canGoNext = false;
-            updateNavigationButtons(prevButton, nextButton);
-
-            // Debug-Logging
-            console.log('Streaming abgeschlossen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
-
-            // Event für Textänderungen durch Benutzer
-            textarea.addEventListener('input', function onInput() {
-              if (currentVersionId) {
-                saveCurrentVersion(textarea.value, currentVersionId);
-              }
-              textarea.removeEventListener('input', onInput);
-            });
-            return;
-          }
-
-          // Decode chunk und zum Buffer hinzufügen
-          buffer += decoder.decode(value, { stream: true });
-          
-          // Verarbeite alle vollständigen Zeilen
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Letzte unvollständige Zeile bleibt im Buffer
-
-          lines.forEach(line => {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6).trim(); // Entferne "data: " und Whitespace
-              if (data) {
-                try {
-                  const parsed = JSON.parse(data);
-                  
-                  if (parsed.error) {
-                    throw new Error(parsed.error);
-                  }
-                  
-                  if (parsed.text) {
-                    accumulatedText += parsed.text;
-                    // Textarea sofort aktualisieren
-                    textarea.value = accumulatedText;
-                    // Scroll zum Ende
-                    textarea.scrollTop = textarea.scrollHeight;
-                  }
-                  
-                  if (parsed.done && parsed.version_id) {
-                    currentVersionId = parsed.version_id;
-                    console.log('Version ID gesetzt:', currentVersionId);
-                  }
-                } catch (e) {
-                  // Ignoriere JSON-Parse-Fehler für unvollständige Daten
-                  if (e.message !== 'Unexpected end of JSON input' && !e.message.includes('JSON')) {
-                    console.error('Parse error:', e, 'Data:', data);
-                  }
-                }
-              }
-            }
-          });
-
-          // Nächsten Chunk lesen
-          readStream();
-        }).catch(error => {
-          setButtonLoading(rewriteButton, false);
-          rewriteButton.disabled = false;
-          console.error('Streaming-Fehler:', error);
-          alert('Fehler beim Streamen des Textes: ' + error.message);
-        });
-      }
-
-      readStream();
     })
     .catch(error => {
       setButtonLoading(rewriteButton, false);
