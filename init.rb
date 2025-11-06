@@ -2,7 +2,7 @@ Redmine::Plugin.register :redmine_ai_integration do
   name 'Redmine AI Integration Plugin'
   author 'Leander Kretschmer'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '0.0.10'
+  version '0.0.12'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
@@ -11,6 +11,8 @@ Redmine::Plugin.register :redmine_ai_integration do
     'openai_api_key' => '',
     'openai_model' => 'gpt-3.5-turbo',
     'ollama_url' => 'http://localhost:11434',
+    'ollama_use_openwebui' => false,
+    'ollama_openwebui_url' => 'http://localhost:3000',
     'ollama_model' => 'llama2',
     'gemini_api_key' => '',
     'gemini_model' => 'gemini-pro',

@@ -29,9 +29,19 @@
 
     <div id="ollama_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'ollama' %>">
       <p>
+        <%= check_box_tag 'settings[ollama_use_openwebui]', '1', @settings['ollama_use_openwebui'] == '1' || @settings['ollama_use_openwebui'] == true, id: 'ollama_use_openwebui' %>
+        <%= label_tag 'ollama_use_openwebui', 'OpenWebUI verwenden' %>
+        <em class="info">Aktivieren Sie dies, wenn Sie OpenWebUI statt direkt Ollama verwenden möchten</em>
+      </p>
+      <p id="ollama_direct_url" style="<%= 'display:none;' if @settings['ollama_use_openwebui'] == '1' || @settings['ollama_use_openwebui'] == true %>">
         <%= label_tag 'settings[ollama_url]', 'Ollama URL' %>
         <%= text_field_tag 'settings[ollama_url]', @settings['ollama_url'] || 'http://localhost:11434', size: 60 %>
-        <em class="info">URL zu Ihrer Ollama-Instanz</em>
+        <em class="info">URL zu Ihrer Ollama-Instanz (z.B. http://localhost:11434)</em>
+      </p>
+      <p id="ollama_openwebui_url" style="<%= 'display:none;' unless @settings['ollama_use_openwebui'] == '1' || @settings['ollama_use_openwebui'] == true %>">
+        <%= label_tag 'settings[ollama_openwebui_url]', 'OpenWebUI URL' %>
+        <%= text_field_tag 'settings[ollama_openwebui_url]', @settings['ollama_openwebui_url'] || 'http://localhost:3000', size: 60 %>
+        <em class="info">URL zu Ihrer OpenWebUI-Instanz (z.B. http://localhost:3000 oder https://openwebui.example.com)</em>
       </p>
       <p>
         <%= label_tag 'settings[ollama_model]', 'Ollama Modell' %>
@@ -103,6 +113,32 @@
         selectedDiv.style.display = 'block';
       }
     });
+
+    // OpenWebUI Checkbox Handler
+    const openwebuiCheckbox = document.getElementById('ollama_use_openwebui');
+    const ollamaDirectUrl = document.getElementById('ollama_direct_url');
+    const ollamaOpenwebuiUrl = document.getElementById('ollama_openwebui_url');
+    
+    if (openwebuiCheckbox) {
+      openwebuiCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+          ollamaDirectUrl.style.display = 'none';
+          ollamaOpenwebuiUrl.style.display = 'block';
+        } else {
+          ollamaDirectUrl.style.display = 'block';
+          ollamaOpenwebuiUrl.style.display = 'none';
+        }
+      });
+      
+      // Initial state setzen
+      if (openwebuiCheckbox.checked) {
+        ollamaDirectUrl.style.display = 'none';
+        ollamaOpenwebuiUrl.style.display = 'block';
+      } else {
+        ollamaDirectUrl.style.display = 'block';
+        ollamaOpenwebuiUrl.style.display = 'none';
+      }
+    }
 
     // Test Connection Button
     const testBtn = document.getElementById('test_connection_btn');

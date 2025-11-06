@@ -179,10 +179,11 @@
   // Rückgängig machen
   function handleUndo(textarea, rewriteButton, undoButton, prevButton, nextButton) {
     if (!currentVersionId || !currentSessionId) {
+      alert('Keine Version zum Rückgängig machen verfügbar.');
       return;
     }
 
-    // Originaltext wiederherstellen
+    // Originaltext wiederherstellen - hole die erste Version (Original)
     const url = '/ai_rewrite/get_version?version_id=' + currentVersionId + '&direction=original';
 
     fetch(url, {
@@ -191,10 +192,25 @@
         'X-CSRF-Token': getCSRFToken()
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+        });
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        return response.text().then(text => {
+          throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
+        });
+      }
+    })
     .then(data => {
       if (data.error) {
         alert('Fehler: ' + data.error);
+        console.error('Undo Error:', data);
         return;
       }
 
@@ -207,10 +223,12 @@
       // Undo-Button verstecken wenn wir beim Original sind
       if (!data.can_go_next) {
         undoButton.style.display = 'none';
+      } else {
+        undoButton.style.display = 'inline-block';
       }
     })
     .catch(error => {
-      console.error('Fehler:', error);
+      console.error('Fehler beim Rückgängig machen:', error);
       alert('Fehler beim Rückgängig machen: ' + error.message);
     });
   }

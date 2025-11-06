@@ -40,6 +40,8 @@ class AiRewriteController < ApplicationController
     version_id = params[:version_id]
     direction = params[:direction] # 'prev', 'next', or 'original'
     
+    Rails.logger.info "Get Version - Version ID: #{version_id}, Direction: #{direction}"
+    
     if direction == 'original'
       version = get_original_version(version_id)
     else
@@ -47,6 +49,7 @@ class AiRewriteController < ApplicationController
     end
     
     if version
+      Rails.logger.info "Get Version - Found version, Text length: #{version[:text].to_s.length}"
       render json: { 
         text: version[:text],
         version_id: version[:id],
@@ -54,6 +57,7 @@ class AiRewriteController < ApplicationController
         can_go_next: version[:can_go_next]
       }
     else
+      Rails.logger.error "Get Version - Version not found"
       render json: { error: 'Version nicht gefunden' }, status: 404
     end
   end
@@ -186,27 +190,60 @@ class AiRewriteController < ApplicationController
     require 'net/http'
     require 'json'
 
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    uri = URI("#{url}/api/generate")
-    http = Net::HTTP.new(uri.host, uri.port)
+    use_openwebui = settings['ollama_use_openwebui'] == '1' || settings['ollama_use_openwebui'] == true
+    
+    if use_openwebui
+      # OpenWebUI API verwenden
+      url = settings['ollama_openwebui_url'] || 'http://localhost:3000'
+      uri = URI("#{url}/api/v1/chat/completions")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == 'https'
 
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
 
-    body = {
-      model: settings['ollama_model'] || 'llama2',
-      prompt: "#{system_prompt}\n\nText:\n#{text}",
-      stream: false
-    }
+      body = {
+        model: settings['ollama_model'] || 'llama2',
+        messages: [
+          { role: 'system', content: system_prompt },
+          { role: 'user', content: text }
+        ],
+        stream: false
+      }
 
-    request.body = body.to_json
-    response = http.request(request)
+      request.body = body.to_json
+      response = http.request(request)
 
-    if response.code == '200'
-      result = JSON.parse(response.body)
-      result['response'].strip
+      if response.code == '200'
+        result = JSON.parse(response.body)
+        result.dig('choices', 0, 'message', 'content').strip
+      else
+        raise "OpenWebUI API Fehler: #{response.code} - #{response.body}"
+      end
     else
-      raise "Ollama API Fehler: #{response.code} - #{response.body}"
+      # Direkte Ollama API verwenden
+      url = settings['ollama_url'] || 'http://localhost:11434'
+      uri = URI("#{url}/api/generate")
+      http = Net::HTTP.new(uri.host, uri.port)
+
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+
+      body = {
+        model: settings['ollama_model'] || 'llama2',
+        prompt: "#{system_prompt}\n\nText:\n#{text}",
+        stream: false
+      }
+
+      request.body = body.to_json
+      response = http.request(request)
+
+      if response.code == '200'
+        result = JSON.parse(response.body)
+        result['response'].strip
+      else
+        raise "Ollama API Fehler: #{response.code} - #{response.body}"
+      end
     end
   end
 
@@ -282,6 +319,8 @@ class AiRewriteController < ApplicationController
     
     versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
     
+    Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}"
+    
     versions = if File.exist?(versions_file)
       JSON.parse(File.read(versions_file))
     else
@@ -291,6 +330,7 @@ class AiRewriteController < ApplicationController
     
     # Wenn es die erste Version ist, Originaltext speichern
     if versions.empty?
+      Rails.logger.info "Save Text Version - First version, saving original text"
       versions << {
         id: "#{session_id}_original",
         original_text: original_text,
@@ -306,6 +346,7 @@ class AiRewriteController < ApplicationController
       timestamp: Time.now.to_i
     }
     
+    Rails.logger.info "Save Text Version - Total versions: #{versions.length}"
     File.write(versions_file, JSON.pretty_generate(versions))
     version_id
   end
@@ -357,12 +398,18 @@ class AiRewriteController < ApplicationController
     session_id = version_id.split('_').first
     versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
     
+    Rails.logger.info "Get Original Version - Session ID: #{session_id}, File exists: #{File.exist?(versions_file)}"
+    
     return nil unless File.exist?(versions_file)
     
     versions = JSON.parse(File.read(versions_file))
+    Rails.logger.info "Get Original Version - Found #{versions.length} versions"
+    
     first_version = versions.first
     
     return nil unless first_version
+    
+    Rails.logger.info "Get Original Version - First version ID: #{first_version['id']}, Original text length: #{first_version['original_text'].to_s.length}"
     
     {
       id: first_version['id'],
@@ -424,39 +471,82 @@ class AiRewriteController < ApplicationController
     require 'net/http'
     require 'json'
 
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    Rails.logger.info "Ollama Test - URL: #{url}"
+    use_openwebui = settings['ollama_use_openwebui'] == '1' || settings['ollama_use_openwebui'] == true
     
-    begin
-      uri = URI("#{url}/api/tags")
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.open_timeout = 5
-      http.read_timeout = 5
+    if use_openwebui
+      # OpenWebUI API testen
+      url = settings['ollama_openwebui_url'] || 'http://localhost:3000'
+      Rails.logger.info "OpenWebUI Test - URL: #{url}"
+      
+      begin
+        uri = URI("#{url}/api/v1/models")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        http.open_timeout = 5
+        http.read_timeout = 5
 
-      Rails.logger.info "Ollama Test - Sende Request an: #{uri}"
-      request = Net::HTTP::Get.new(uri)
-      response = http.request(request)
-      Rails.logger.info "Ollama Test - Response Code: #{response.code}"
+        Rails.logger.info "OpenWebUI Test - Sende Request an: #{uri}"
+        request = Net::HTTP::Get.new(uri)
+        request['Content-Type'] = 'application/json'
+        response = http.request(request)
+        Rails.logger.info "OpenWebUI Test - Response Code: #{response.code}"
 
-      if response.code == '200'
-        models_data = JSON.parse(response.body)
-        models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
-        Rails.logger.info "Ollama Test - Gefundene Modelle: #{models.count} (#{models.join(', ')})"
-        { success: true, message: "Verbindung erfolgreich zu #{url}", models: models }
-      else
-        error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
-        Rails.logger.error "Ollama Test - #{error_msg}"
+        if response.code == '200'
+          models_data = JSON.parse(response.body)
+          models = models_data['data'] ? models_data['data'].map { |m| m['id'] } : []
+          Rails.logger.info "OpenWebUI Test - Gefundene Modelle: #{models.count} (#{models.join(', ')})"
+          { success: true, message: "Verbindung erfolgreich zu OpenWebUI (#{url})", models: models }
+        else
+          error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
+          Rails.logger.error "OpenWebUI Test - #{error_msg}"
+          { success: false, error: error_msg }
+        end
+      rescue Timeout::Error => e
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
+        Rails.logger.error "OpenWebUI Test - #{error_msg}"
+        { success: false, error: error_msg }
+      rescue => e
+        error_msg = "Verbindung fehlgeschlagen: #{e.message}"
+        Rails.logger.error "OpenWebUI Test - #{error_msg}"
+        Rails.logger.error e.backtrace.join("\n")
         { success: false, error: error_msg }
       end
-    rescue Timeout::Error => e
-      error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
-      Rails.logger.error "Ollama Test - #{error_msg}"
-      { success: false, error: error_msg }
-    rescue => e
-      error_msg = "Verbindung fehlgeschlagen: #{e.message}"
-      Rails.logger.error "Ollama Test - #{error_msg}"
-      Rails.logger.error e.backtrace.join("\n")
-      { success: false, error: error_msg }
+    else
+      # Direkte Ollama API testen
+      url = settings['ollama_url'] || 'http://localhost:11434'
+      Rails.logger.info "Ollama Test - URL: #{url}"
+      
+      begin
+        uri = URI("#{url}/api/tags")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 5
+        http.read_timeout = 5
+
+        Rails.logger.info "Ollama Test - Sende Request an: #{uri}"
+        request = Net::HTTP::Get.new(uri)
+        response = http.request(request)
+        Rails.logger.info "Ollama Test - Response Code: #{response.code}"
+
+        if response.code == '200'
+          models_data = JSON.parse(response.body)
+          models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+          Rails.logger.info "Ollama Test - Gefundene Modelle: #{models.count} (#{models.join(', ')})"
+          { success: true, message: "Verbindung erfolgreich zu #{url}", models: models }
+        else
+          error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
+          Rails.logger.error "Ollama Test - #{error_msg}"
+          { success: false, error: error_msg }
+        end
+      rescue Timeout::Error => e
+        error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
+        Rails.logger.error "Ollama Test - #{error_msg}"
+        { success: false, error: error_msg }
+      rescue => e
+        error_msg = "Verbindung fehlgeschlagen: #{e.message}"
+        Rails.logger.error "Ollama Test - #{error_msg}"
+        Rails.logger.error e.backtrace.join("\n")
+        { success: false, error: error_msg }
+      end
     end
   end
 
