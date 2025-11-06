@@ -2,7 +2,7 @@ Redmine::Plugin.register :redmine_ai_integration do
   name 'Redmine AI Integration Plugin'
   author 'Leander Kretschmer'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '0.0.7'
+  version '0.0.8'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
@@ -21,7 +21,7 @@ Redmine::Plugin.register :redmine_ai_integration do
 end
 
 # Routes registrieren
-ActionDispatch::Callbacks.to_prepare do
+Rails.application.config.to_prepare do
   RedmineApp::Application.routes.append do
     post 'ai_rewrite/rewrite', to: 'ai_rewrite#rewrite'
     post 'ai_rewrite/save_version', to: 'ai_rewrite#save_version'
