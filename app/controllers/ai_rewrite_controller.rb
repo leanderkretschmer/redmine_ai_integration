@@ -1,7 +1,51 @@
 class AiRewriteController < ApplicationController
+  include ActionController::Live
+
   before_action :require_login
-  before_action :check_settings, except: [:test_connection]
-  skip_before_action :verify_authenticity_token, only: [:rewrite, :save_version, :get_version, :clear_versions, :test_connection]
+  before_action :check_settings, except: [:test_connection, :rewrite_stream]
+  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection]
+
+  def rewrite_stream
+    text = params[:text]
+    return render json: { error: 'Kein Text angegeben' }, status: 400 if text.blank?
+
+    provider = Setting.plugin_redmine_ai_integration['ai_provider']
+    
+    # Nur Ollama unterstützt Streaming aktuell
+    unless provider == 'ollama'
+      return render json: { error: 'Streaming wird nur für Ollama unterstützt' }, status: 400
+    end
+
+    # SSE-Response vorbereiten
+    response.headers['Content-Type'] = 'text/event-stream'
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    
+    begin
+      settings = Setting.plugin_redmine_ai_integration
+      system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
+      session_id = params[:session_id] || generate_session_id
+      
+      accumulated_text = ''
+      
+      call_ollama_stream(text, system_prompt, settings, session_id) do |chunk|
+        accumulated_text += chunk
+        # Jeden Chunk als SSE-Event senden
+        response.stream.write("data: #{JSON.generate({ text: chunk })}\n\n")
+      end
+      
+      # Finales Event mit Version-ID
+      version_id = save_text_version(text, accumulated_text, session_id)
+      response.stream.write("data: #{JSON.generate({ done: true, version_id: version_id })}\n\n")
+      
+    rescue => e
+      Rails.logger.error "AI Rewrite Stream Fehler: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      response.stream.write("data: #{JSON.generate({ error: e.message })}\n\n")
+    ensure
+      response.stream.close
+    end
+  end
 
   def rewrite
     text = params[:text]
@@ -39,11 +83,17 @@ class AiRewriteController < ApplicationController
   def get_version
     version_id = params[:version_id]
     direction = params[:direction] # 'prev', 'next', or 'original'
+    session_id = params[:session_id]
     
-    Rails.logger.info "Get Version - Version ID: #{version_id}, Direction: #{direction}"
+    Rails.logger.info "Get Version - Version ID: #{version_id}, Direction: #{direction}, Session ID: #{session_id}"
+    
+    # Session-ID aus Version-ID extrahieren falls nicht vorhanden
+    if session_id.blank? && version_id.present?
+      session_id = version_id.split('_').first
+    end
     
     if direction == 'original'
-      version = get_original_version(version_id)
+      version = get_original_version(session_id || version_id)
     else
       version = get_text_version(version_id, direction)
     end
@@ -57,7 +107,7 @@ class AiRewriteController < ApplicationController
         can_go_next: version[:can_go_next]
       }
     else
-      Rails.logger.error "Get Version - Version not found"
+      Rails.logger.error "Get Version - Version not found for version_id: #{version_id}, direction: #{direction}, session_id: #{session_id}"
       render json: { error: 'Version nicht gefunden' }, status: 404
     end
   end
@@ -183,6 +233,117 @@ class AiRewriteController < ApplicationController
       result['choices'][0]['message']['content'].strip
     else
       raise "OpenAI API Fehler: #{response.code} - #{response.body}"
+    end
+  end
+
+  def call_ollama_stream(text, system_prompt, settings, session_id, &block)
+    require 'net/http'
+    require 'json'
+
+    use_openwebui = settings['ollama_use_openwebui'] == '1' || settings['ollama_use_openwebui'] == true
+    
+    if use_openwebui
+      # OpenWebUI API verwenden (Streaming)
+      url = settings['ollama_openwebui_url'] || 'http://localhost:3000'
+      uri = URI("#{url}/api/v1/chat/completions")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == 'https'
+      http.open_timeout = 30
+      http.read_timeout = 120
+
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+
+      body = {
+        model: settings['ollama_model'] || 'llama2',
+        messages: [
+          { role: 'system', content: system_prompt },
+          { role: 'user', content: text }
+        ],
+        stream: true
+      }
+
+      request.body = body.to_json
+      
+      begin
+        http.request(request) do |response|
+          if response.code == '200'
+            response.read_body do |chunk|
+              # OpenWebUI sendet Server-Sent Events
+              chunk.to_s.split("\n").each do |line|
+                next if line.empty? || !line.start_with?('data: ')
+                data = line[6..-1] # Entferne "data: "
+                next if data == '[DONE]'
+                begin
+                  parsed = JSON.parse(data)
+                  content = parsed.dig('choices', 0, 'delta', 'content')
+                  block.call(content) if content
+                rescue JSON::ParserError
+                  # Ignoriere ungültige JSON-Zeilen
+                end
+              end
+            end
+          else
+            raise "OpenWebUI API Fehler: #{response.code} - #{response.body}"
+          end
+        end
+      rescue => e
+        Rails.logger.error "Ollama Stream Call - Error: #{e.class} - #{e.message}"
+        raise "Ollama Verbindungsfehler: #{e.message}"
+      end
+    else
+      # Direkte Ollama API verwenden (Streaming)
+      url = settings['ollama_url'] || 'http://localhost:11434'
+      Rails.logger.info "Ollama Stream Call - URL: #{url}, Model: #{settings['ollama_model']}"
+      
+      url = url.chomp('/')
+      use_ssl = url.start_with?('https://')
+      
+      uri = URI("#{url}/api/generate")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = use_ssl
+      http.open_timeout = 30
+      http.read_timeout = 120
+
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+
+      body = {
+        model: settings['ollama_model'] || 'llama2',
+        prompt: "#{system_prompt}\n\nText:\n#{text}",
+        stream: true
+      }
+
+      request.body = body.to_json
+      
+      begin
+        http.request(request) do |response|
+          if response.code == '200'
+            response.read_body do |chunk|
+              # Ollama sendet JSON-Zeilen
+              chunk.to_s.split("\n").each do |line|
+                next if line.empty?
+                begin
+                  parsed = JSON.parse(line)
+                  content = parsed['response']
+                  block.call(content) if content
+                rescue JSON::ParserError
+                  # Ignoriere ungültige JSON-Zeilen
+                end
+              end
+            end
+          else
+            raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
+          end
+        end
+      rescue Timeout::Error => e
+        Rails.logger.error "Ollama Stream Call - Timeout: #{e.message}"
+        raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
+      rescue => e
+        Rails.logger.error "Ollama Stream Call - Error: #{e.class} - #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        raise "Ollama Verbindungsfehler: #{e.message}"
+      end
     end
   end
 
@@ -340,8 +501,8 @@ class AiRewriteController < ApplicationController
     end
   end
 
-  def save_text_version(original_text, improved_text)
-    session_id = params[:session_id] || generate_session_id
+  def save_text_version(original_text, improved_text, session_id = nil)
+    session_id ||= params[:session_id] || generate_session_id
     version_id = "#{session_id}_#{Time.now.to_i}"
     
     versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
@@ -421,11 +582,18 @@ class AiRewriteController < ApplicationController
     }
   end
 
-  def get_original_version(version_id)
-    session_id = version_id.split('_').first
+  def get_original_version(version_id_or_session_id)
+    # Wenn es eine Session-ID ist (beginnt mit "session_"), verwende sie direkt
+    # Ansonsten extrahiere die Session-ID aus der Version-ID
+    session_id = if version_id_or_session_id.to_s.start_with?('session_')
+      version_id_or_session_id
+    else
+      version_id_or_session_id.to_s.split('_').first
+    end
+    
     versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
     
-    Rails.logger.info "Get Original Version - Session ID: #{session_id}, File exists: #{File.exist?(versions_file)}"
+    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Session ID: #{session_id}, File exists: #{File.exist?(versions_file)}"
     
     return nil unless File.exist?(versions_file)
     
