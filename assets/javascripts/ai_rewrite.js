@@ -249,11 +249,14 @@
 
   // Version navigieren
   function handleNavigateVersion(textarea, direction, prevButton, nextButton) {
-    if (!currentVersionId) {
+    console.log('Navigate Version aufgerufen. Direction:', direction, 'Version ID:', currentVersionId, 'Session ID:', currentSessionId);
+    
+    if (!currentVersionId || !currentSessionId) {
+      console.error('Fehlende IDs für Navigation:', { currentVersionId, currentSessionId });
       return;
     }
 
-    const url = '/ai_rewrite/get_version?version_id=' + currentVersionId + '&direction=' + direction;
+    const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(currentVersionId) + '&direction=' + direction + '&session_id=' + encodeURIComponent(currentSessionId);
 
     fetch(url, {
       method: 'GET',
@@ -261,9 +264,28 @@
         'X-CSRF-Token': getCSRFToken()
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          console.error('HTTP Fehler bei Navigation:', response.status, text);
+          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+        });
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        return response.text().then(text => {
+          throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
+        });
+      }
+    })
     .then(data => {
+      console.log('Navigate Version Response:', data);
+      
       if (data.error) {
+        console.error('Navigation Error:', data);
+        alert('Fehler: ' + data.error);
         return;
       }
 
@@ -274,7 +296,8 @@
       updateNavigationButtons(prevButton, nextButton);
     })
     .catch(error => {
-      console.error('Fehler:', error);
+      console.error('Fehler bei Navigation:', error);
+      alert('Fehler bei Navigation: ' + error.message);
     });
   }
 
