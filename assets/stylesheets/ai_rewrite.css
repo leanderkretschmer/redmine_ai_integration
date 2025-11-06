@@ -1,0 +1,54 @@
+.ai-rewrite-container {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.ai-rewrite-button-group {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.ai-rewrite-button,
+.ai-undo-button,
+.ai-prev-button,
+.ai-next-button {
+  transition: all 0.3s ease;
+}
+
+.ai-rewrite-button:hover {
+  background: #357abd !important;
+}
+
+.ai-undo-button:hover {
+  background: #c0392b !important;
+}
+
+.ai-prev-button:hover:not(:disabled),
+.ai-next-button:hover:not(:disabled) {
+  background: #7f8c8d !important;
+}
+
+.ai-rewrite-button:disabled,
+.ai-undo-button:disabled,
+.ai-prev-button:disabled,
+.ai-next-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ai-spinning {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+.ai-rewrite-icon,
+.ai-undo-icon {
+  display: inline-block;
+}
+

@@ -1,0 +1,98 @@
+<%= form_tag({ controller: 'settings', action: 'plugin', id: 'redmine_ai_rewrite' }, method: :post) do %>
+  <div class="box tabular">
+    <h3>AI-Provider Einstellungen</h3>
+    
+    <p>
+      <%= label_tag 'settings[ai_provider]', 'AI-Provider' %>
+      <%= select_tag 'settings[ai_provider]', 
+          options_for_select([
+            ['OpenAI', 'openai'],
+            ['Ollama (selbstgehostet)', 'ollama'],
+            ['Google Gemini', 'gemini'],
+            ['Anthropic Claude', 'claude']
+          ], @settings['ai_provider']),
+          id: 'ai_provider_select' %>
+    </p>
+
+    <div id="openai_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'openai' %>">
+      <p>
+        <%= label_tag 'settings[openai_api_key]', 'OpenAI API Key' %>
+        <%= password_field_tag 'settings[openai_api_key]', @settings['openai_api_key'], size: 60 %>
+        <em class="info">Ihr OpenAI API-Schlüssel</em>
+      </p>
+      <p>
+        <%= label_tag 'settings[openai_model]', 'OpenAI Modell' %>
+        <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40 %>
+        <em class="info">z.B. gpt-3.5-turbo, gpt-4</em>
+      </p>
+    </div>
+
+    <div id="ollama_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'ollama' %>">
+      <p>
+        <%= label_tag 'settings[ollama_url]', 'Ollama URL' %>
+        <%= text_field_tag 'settings[ollama_url]', @settings['ollama_url'] || 'http://localhost:11434', size: 60 %>
+        <em class="info">URL zu Ihrer Ollama-Instanz</em>
+      </p>
+      <p>
+        <%= label_tag 'settings[ollama_model]', 'Ollama Modell' %>
+        <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40 %>
+        <em class="info">z.B. llama2, mistral, codellama</em>
+      </p>
+    </div>
+
+    <div id="gemini_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'gemini' %>">
+      <p>
+        <%= label_tag 'settings[gemini_api_key]', 'Gemini API Key' %>
+        <%= password_field_tag 'settings[gemini_api_key]', @settings['gemini_api_key'], size: 60 %>
+        <em class="info">Ihr Google Gemini API-Schlüssel</em>
+      </p>
+      <p>
+        <%= label_tag 'settings[gemini_model]', 'Gemini Modell' %>
+        <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40 %>
+        <em class="info">z.B. gemini-pro, gemini-pro-vision</em>
+      </p>
+    </div>
+
+    <div id="claude_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'claude' %>">
+      <p>
+        <%= label_tag 'settings[claude_api_key]', 'Claude API Key' %>
+        <%= password_field_tag 'settings[claude_api_key]', @settings['claude_api_key'], size: 60 %>
+        <em class="info">Ihr Anthropic Claude API-Schlüssel</em>
+      </p>
+      <p>
+        <%= label_tag 'settings[claude_model]', 'Claude Modell' %>
+        <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40 %>
+        <em class="info">z.B. claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307</em>
+      </p>
+    </div>
+
+    <h3>System-Prompt</h3>
+    <p>
+      <%= label_tag 'settings[system_prompt]', 'System-Prompt für Textverbesserung' %>
+      <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
+      <em class="info">Definiert, wie der Text verbessert werden soll. Der Text wird als Variable übergeben.</em>
+    </p>
+  </div>
+
+  <%= submit_tag l(:button_save) %>
+<% end %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const providerSelect = document.getElementById('ai_provider_select');
+    const providerSettings = document.querySelectorAll('.provider_settings');
+    
+    providerSelect.addEventListener('change', function() {
+      providerSettings.forEach(function(div) {
+        div.style.display = 'none';
+      });
+      
+      const selectedProvider = this.value;
+      const selectedDiv = document.getElementById(selectedProvider + '_settings');
+      if (selectedDiv) {
+        selectedDiv.style.display = 'block';
+      }
+    });
+  });
+</script>
+
