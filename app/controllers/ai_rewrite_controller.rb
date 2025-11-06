@@ -65,28 +65,42 @@ class AiRewriteController < ApplicationController
   end
 
   def test_connection
+    Rails.logger.info "=== AI Rewrite Test Connection Start ==="
+    Rails.logger.info "Provider: #{params[:provider]}"
+    Rails.logger.info "Settings: #{Setting.plugin_redmine_ai_integration.inspect}"
+    
     begin
       settings = Setting.plugin_redmine_ai_integration
       provider = params[:provider] || settings['ai_provider']
       
+      Rails.logger.info "Using provider: #{provider}"
+      
       case provider
       when 'openai'
+        Rails.logger.info "Testing OpenAI connection..."
         result = test_openai_connection(settings)
       when 'ollama'
+        Rails.logger.info "Testing Ollama connection..."
         result = test_ollama_connection(settings)
       when 'gemini'
+        Rails.logger.info "Testing Gemini connection..."
         result = test_gemini_connection(settings)
       when 'claude'
+        Rails.logger.info "Testing Claude connection..."
         result = test_claude_connection(settings)
       else
-        render json: { error: "Unbekannter Provider: #{provider}" }, status: 400
+        Rails.logger.error "Unbekannter Provider: #{provider}"
+        render json: { success: false, error: "Unbekannter Provider: #{provider}" }, status: 400
         return
       end
       
+      Rails.logger.info "Test result: #{result.inspect}"
+      Rails.logger.info "=== AI Rewrite Test Connection End ==="
       render json: result
     rescue => e
       Rails.logger.error "Test Connection Fehler: #{e.message}"
-      render json: { success: false, error: e.message }, status: 500
+      Rails.logger.error e.backtrace.join("\n")
+      render json: { success: false, error: e.message, backtrace: e.backtrace.first(5) }, status: 500
     end
   end
 
@@ -378,6 +392,8 @@ class AiRewriteController < ApplicationController
     require 'net/http'
     require 'json'
 
+    Rails.logger.info "OpenAI Test - API Key vorhanden: #{!settings['openai_api_key'].blank?}"
+    
     if settings['openai_api_key'].blank?
       return { success: false, error: 'OpenAI API Key nicht konfiguriert' }
     end
@@ -389,13 +405,18 @@ class AiRewriteController < ApplicationController
     request = Net::HTTP::Get.new(uri)
     request['Authorization'] = "Bearer #{settings['openai_api_key']}"
 
+    Rails.logger.info "OpenAI Test - Sende Request an: #{uri}"
     response = http.request(request)
+    Rails.logger.info "OpenAI Test - Response Code: #{response.code}"
 
     if response.code == '200'
       models = JSON.parse(response.body)['data'].map { |m| m['id'] }.select { |id| id.start_with?('gpt') }
+      Rails.logger.info "OpenAI Test - Gefundene Modelle: #{models.count}"
       { success: true, message: 'Verbindung erfolgreich', models: models }
     else
-      { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+      error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
+      Rails.logger.error "OpenAI Test - #{error_msg}"
+      { success: false, error: error_msg }
     end
   end
 
@@ -404,6 +425,7 @@ class AiRewriteController < ApplicationController
     require 'json'
 
     url = settings['ollama_url'] || 'http://localhost:11434'
+    Rails.logger.info "Ollama Test - URL: #{url}"
     
     begin
       uri = URI("#{url}/api/tags")
@@ -411,20 +433,30 @@ class AiRewriteController < ApplicationController
       http.open_timeout = 5
       http.read_timeout = 5
 
+      Rails.logger.info "Ollama Test - Sende Request an: #{uri}"
       request = Net::HTTP::Get.new(uri)
       response = http.request(request)
+      Rails.logger.info "Ollama Test - Response Code: #{response.code}"
 
       if response.code == '200'
         models_data = JSON.parse(response.body)
         models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
-        { success: true, message: 'Verbindung erfolgreich', models: models }
+        Rails.logger.info "Ollama Test - Gefundene Modelle: #{models.count} (#{models.join(', ')})"
+        { success: true, message: "Verbindung erfolgreich zu #{url}", models: models }
       else
-        { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+        error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
+        Rails.logger.error "Ollama Test - #{error_msg}"
+        { success: false, error: error_msg }
       end
-    rescue Timeout::Error
-      { success: false, error: "Verbindung zu #{url} fehlgeschlagen: Timeout" }
+    rescue Timeout::Error => e
+      error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout"
+      Rails.logger.error "Ollama Test - #{error_msg}"
+      { success: false, error: error_msg }
     rescue => e
-      { success: false, error: "Verbindung fehlgeschlagen: #{e.message}" }
+      error_msg = "Verbindung fehlgeschlagen: #{e.message}"
+      Rails.logger.error "Ollama Test - #{error_msg}"
+      Rails.logger.error e.backtrace.join("\n")
+      { success: false, error: error_msg }
     end
   end
 
@@ -432,6 +464,8 @@ class AiRewriteController < ApplicationController
     require 'net/http'
     require 'json'
 
+    Rails.logger.info "Gemini Test - API Key vorhanden: #{!settings['gemini_api_key'].blank?}"
+    
     if settings['gemini_api_key'].blank?
       return { success: false, error: 'Gemini API Key nicht konfiguriert' }
     end
@@ -441,15 +475,20 @@ class AiRewriteController < ApplicationController
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
 
+    Rails.logger.info "Gemini Test - Sende Request an: #{uri.host}#{uri.path}"
     request = Net::HTTP::Get.new(uri)
     response = http.request(request)
+    Rails.logger.info "Gemini Test - Response Code: #{response.code}"
 
     if response.code == '200'
       models_data = JSON.parse(response.body)
       models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+      Rails.logger.info "Gemini Test - Gefundene Modelle: #{models.count}"
       { success: true, message: 'Verbindung erfolgreich', models: models }
     else
-      { success: false, error: "API Fehler: #{response.code} - #{response.body[0..200]}" }
+      error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
+      Rails.logger.error "Gemini Test - #{error_msg}"
+      { success: false, error: error_msg }
     end
   end
 
@@ -457,6 +496,8 @@ class AiRewriteController < ApplicationController
     require 'net/http'
     require 'json'
 
+    Rails.logger.info "Claude Test - API Key vorhanden: #{!settings['claude_api_key'].blank?}"
+    
     if settings['claude_api_key'].blank?
       return { success: false, error: 'Claude API Key nicht konfiguriert' }
     end
@@ -479,14 +520,19 @@ class AiRewriteController < ApplicationController
       }]
     }
 
+    Rails.logger.info "Claude Test - Sende Request an: #{uri}"
     request.body = body.to_json
     response = http.request(request)
+    Rails.logger.info "Claude Test - Response Code: #{response.code}"
 
     if response.code == '200'
+      Rails.logger.info "Claude Test - Verbindung erfolgreich"
       { success: true, message: 'Verbindung erfolgreich' }
     else
       error_body = response.body[0..500]
-      { success: false, error: "API Fehler: #{response.code} - #{error_body}" }
+      error_msg = "API Fehler: #{response.code} - #{error_body}"
+      Rails.logger.error "Claude Test - #{error_msg}"
+      { success: false, error: error_msg }
     end
   end
 end

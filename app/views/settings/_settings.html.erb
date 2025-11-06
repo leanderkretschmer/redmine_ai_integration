@@ -129,21 +129,34 @@
         }
       })
       .then(response => {
+        console.log('Test Connection Response Status:', response.status);
+        console.log('Test Connection Response Headers:', response.headers);
+        
         if (!response.ok) {
           return response.text().then(text => {
-            throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+            console.error('Test Connection Error Response:', text);
+            let errorMsg = 'HTTP ' + response.status + ': ';
+            if (response.status === 404) {
+              errorMsg += 'Route nicht gefunden. Bitte Redmine neu starten und sicherstellen, dass das Plugin aktiviert ist.';
+            } else {
+              errorMsg += text.substring(0, 500);
+            }
+            throw new Error(errorMsg);
           });
         }
         const contentType = response.headers.get('content-type');
+        console.log('Test Connection Content-Type:', contentType);
         if (contentType && contentType.includes('application/json')) {
           return response.json();
         } else {
           return response.text().then(text => {
+            console.error('Test Connection Invalid Content-Type:', text);
             throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
           });
         }
       })
       .then(data => {
+        console.log('Test Connection Success Data:', data);
         testBtn.disabled = false;
         resultDiv.style.display = 'block';
 
@@ -163,16 +176,21 @@
         } else {
           statusSpan.textContent = 'Fehler';
           statusSpan.style.color = 'red';
-          messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + (data.error || 'Unbekannter Fehler');
+          let errorHtml = '<strong style="color: red;">Fehler:</strong> ' + (data.error || 'Unbekannter Fehler');
+          if (data.backtrace) {
+            errorHtml += '<br><small style="color: #666;">Stack Trace: ' + data.backtrace.join('<br>') + '</small>';
+          }
+          messageDiv.innerHTML = errorHtml;
           modelsDiv.innerHTML = '';
         }
       })
       .catch(error => {
+        console.error('Test Connection Exception:', error);
         testBtn.disabled = false;
         statusSpan.textContent = 'Fehler';
         statusSpan.style.color = 'red';
         resultDiv.style.display = 'block';
-        messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + error.message;
+        messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + error.message + '<br><small style="color: #666;">Bitte prüfen Sie die Browser-Konsole (F12) für weitere Details.</small>';
         modelsDiv.innerHTML = '';
       });
     });
