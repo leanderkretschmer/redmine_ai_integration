@@ -8,7 +8,7 @@ class AiRewriteController < ApplicationController
     return render json: { error: 'Kein Text angegeben' }, status: 400 if text.blank?
 
     begin
-      provider = Setting.plugin_redmine_ai_rewrite['ai_provider']
+      provider = Setting.plugin_redmine_ai_integration['ai_provider']
       improved_text = call_ai_api(text, provider)
       
       # Version speichern
@@ -67,7 +67,7 @@ class AiRewriteController < ApplicationController
   private
 
   def check_settings
-    settings = Setting.plugin_redmine_ai_rewrite
+    settings = Setting.plugin_redmine_ai_integration
     provider = settings['ai_provider']
     
     case provider
@@ -93,7 +93,7 @@ class AiRewriteController < ApplicationController
   end
 
   def call_ai_api(text, provider)
-    settings = Setting.plugin_redmine_ai_rewrite
+    settings = Setting.plugin_redmine_ai_integration
     system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
 
     case provider
@@ -338,7 +338,7 @@ class AiRewriteController < ApplicationController
   end
 
   def plugin_tmp_dir
-    dir = File.join(Rails.root, 'tmp', 'redmine_ai_rewrite')
+    dir = File.join(Rails.root, 'tmp', 'redmine_ai_integration')
     FileUtils.mkdir_p(dir) unless File.directory?(dir)
     dir
   end

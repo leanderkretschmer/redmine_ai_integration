@@ -1,8 +1,8 @@
-Redmine::Plugin.register :redmine_ai_rewrite do
-  name 'Redmine AI Rewrite Plugin'
+Redmine::Plugin.register :redmine_ai_integration do
+  name 'Redmine AI Integration Plugin'
   author 'Redmine AI Integration'
   description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen'
-  version '0.0.1'
+  version '0.0.11'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
@@ -17,16 +17,16 @@ Redmine::Plugin.register :redmine_ai_rewrite do
     'claude_api_key' => '',
     'claude_model' => 'claude-3-sonnet-20240229',
     'system_prompt' => 'Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrigiere Rechtschreib- und Grammatikfehler, verbessere die Struktur und mache ihn professioneller, während der ursprüngliche Sinn und Inhalt erhalten bleibt. Antworte nur mit dem verbesserten Text, ohne zusätzliche Erklärungen.'
-  }, partial: 'settings/ai_rewrite_settings'
+  }, partial: 'settings/ai_integration_settings'
 
   # Assets registrieren
-  menu :admin_menu, :ai_rewrite_settings, { controller: 'settings', action: 'plugin', id: 'redmine_ai_rewrite' }, 
-       caption: :label_ai_rewrite_settings, after: :plugins
+  menu :admin_menu, :ai_integration_settings, { controller: 'settings', action: 'plugin', id: 'redmine_ai_integration' }, 
+       caption: :label_ai_integration_settings, after: :plugins
 end
 
 # Assets laden
 Rails.application.config.to_prepare do
-  Redmine::Plugin.find(:redmine_ai_rewrite).assets.each do |asset|
+  Redmine::Plugin.find(:redmine_ai_integration).assets.each do |asset|
     Rails.application.config.assets.precompile << asset
   end
 end

@@ -1,4 +1,4 @@
-# Redmine AI Rewrite Plugin
+# Redmine AI Integration Plugin
 
 Ein Redmine 6 Plugin, das KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen bietet.
 
@@ -13,9 +13,9 @@ Ein Redmine 6 Plugin, das KI-gestützte Textverbesserung für Kommentare und Tic
 
 ## Installation
 
-1. Kopiere das Plugin-Verzeichnis nach `redmine/plugins/redmine_ai_rewrite`
+1. Kopiere das Plugin-Verzeichnis nach `redmine/plugins/redmine_ai_integration`
 2. Starte Redmine neu oder führe `bundle exec rake redmine:plugins:migrate RAILS_ENV=production` aus
-3. Gehe zu Administration → Plugins → AI Rewrite Einstellungen
+3. Gehe zu Administration → Plugins → AI Integration Einstellungen
 4. Konfiguriere deinen bevorzugten KI-Provider und API-Keys
 
 ## Konfiguration
@@ -63,7 +63,7 @@ Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrig
 
 ## Technische Details
 
-- Versionsdaten werden temporär in `tmp/redmine_ai_rewrite/` gespeichert
+- Versionsdaten werden temporär in `tmp/redmine_ai_integration/` gespeichert
 - Session-basierte Versionsverwaltung pro Textfeld
 - Automatische Bereinigung beim Speichern
 
