@@ -93,9 +93,85 @@
     // Session-ID initialisieren wenn Textarea fokussiert wird
     textarea.addEventListener('focus', function() {
       if (!currentSessionId) {
-        currentSessionId = generateSessionId();
+        checkExistingVersions(textarea, undoButton, prevButton, nextButton).then(function(hasVersions) {
+          // Nur neue Session-ID generieren, wenn keine Versionen gefunden wurden
+          if (!hasVersions && !currentSessionId) {
+            currentSessionId = generateSessionId();
+          }
+        });
       }
     });
+    
+    // Beim Laden prüfen, ob bereits Versionen existieren
+    checkExistingVersions(textarea, undoButton, prevButton, nextButton);
+  }
+  
+  // Prüfe ob bereits Versionen für dieses Issue/Field existieren
+  function checkExistingVersions(textarea, undoButton, prevButton, nextButton) {
+    if (currentSessionId) {
+      return Promise.resolve(false); // Bereits eine Session vorhanden
+    }
+    
+    const issueId = extractIssueIdFromUrl();
+    if (!issueId) {
+      return Promise.resolve(false); // Keine Issue-ID gefunden
+    }
+    
+    // Field-Type bestimmen
+    let fieldType = 'description';
+    if (textarea.id && textarea.id.includes('notes')) {
+      fieldType = 'notes';
+    } else if (textarea.id && textarea.id.includes('description')) {
+      fieldType = 'description';
+    }
+    
+    const url = '/ai_rewrite/check_versions?issue_id=' + encodeURIComponent(issueId) + '&field_type=' + encodeURIComponent(fieldType);
+    
+    return fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-CSRF-Token': getCSRFToken()
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        return null;
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
+      return null;
+    })
+    .then(data => {
+      if (data && data.has_versions) {
+        // Session-ID wiederherstellen
+        currentSessionId = data.session_id;
+        currentVersionId = data.version_id;
+        versionHistory.canGoPrev = data.can_go_prev;
+        versionHistory.canGoNext = data.can_go_next;
+        
+        // Buttons anzeigen
+        undoButton.style.display = 'inline-block';
+        prevButton.style.display = 'inline-block';
+        nextButton.style.display = 'inline-block';
+        updateNavigationButtons(prevButton, nextButton);
+        
+        console.log('Versions wiederhergestellt. Session ID:', currentSessionId, 'Version ID:', currentVersionId);
+        return true;
+      }
+      return false;
+    })
+    .catch(error => {
+      console.error('Fehler beim Prüfen der Versionen:', error);
+      return false;
+    });
+  }
+  
+  // Issue-ID aus URL extrahieren
+  function extractIssueIdFromUrl() {
+    const match = window.location.pathname.match(/\/issues\/(\d+)/);
+    return match ? match[1] : null;
   }
 
   // Rewrite durchführen
@@ -434,24 +510,13 @@
     });
   }
 
-  // Session beim Speichern zurücksetzen
+  // Session beim Speichern zurücksetzen (aber Versionen bleiben in DB)
   function resetSession() {
-    if (currentSessionId) {
-      const url = '/ai_rewrite/clear_versions';
-      
-      fetch(url, {
-        method: 'DELETE',
-        body: JSON.stringify({ session_id: currentSessionId }),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': getCSRFToken()
-        }
-      }).then(function() {
-        currentSessionId = null;
-        currentVersionId = null;
-        versionHistory = { canGoPrev: false, canGoNext: false };
-      });
-    }
+    // Session-Variablen zurücksetzen, aber Versionen bleiben in der DB
+    // Beim nächsten Laden werden sie wiederhergestellt
+    currentSessionId = null;
+    currentVersionId = null;
+    versionHistory = { canGoPrev: false, canGoNext: false };
   }
 
   // Beim Speichern Session zurücksetzen

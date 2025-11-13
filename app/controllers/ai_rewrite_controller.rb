@@ -2,8 +2,8 @@ class AiRewriteController < ApplicationController
   include ActionController::Live
 
   before_action :require_login
-  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests]
-  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection]
+  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests, :check_versions]
+  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection, :check_versions]
 
   def rewrite_stream
     text = params[:text]
@@ -156,6 +156,30 @@ class AiRewriteController < ApplicationController
     session_id = params[:session_id]
     clear_text_versions(session_id)
     render json: { success: true }
+  end
+
+  def check_versions
+    issue_id = params[:issue_id]&.to_i
+    field_type = params[:field_type] || 'description'
+    
+    return render json: { has_versions: false } unless issue_id
+    
+    # Suche nach der neuesten Version für dieses Issue und Field
+    latest_version = AiTextVersion.where(issue_id: issue_id, field_type: field_type)
+                                  .order(last_changed_on: :desc)
+                                  .first
+    
+    if latest_version
+      render json: {
+        has_versions: true,
+        session_id: latest_version.session_id,
+        version_id: latest_version.version_id,
+        can_go_prev: latest_version.can_go_prev?,
+        can_go_next: latest_version.can_go_next?
+      }
+    else
+      render json: { has_versions: false }
+    end
   end
 
   def requests

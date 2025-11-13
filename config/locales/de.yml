@@ -2,6 +2,7 @@
 de:
   label_ai_integration_settings: "AI Integration Einstellungen"
   label_ai_integration_requests: "AI Integration Requests"
+  label_plugin_settings: "Plugin-Einstellungen"
   field_last_changed_on: "Letzte Änderung"
   label_embedded_system_prompt: "Embedded System-Prompt"
   label_optional_system_prompt: "Optionaler System-Prompt"
