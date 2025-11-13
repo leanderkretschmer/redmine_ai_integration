@@ -10,14 +10,12 @@
 }
 
 .ai-rewrite-button,
-.ai-undo-button,
 .ai-prev-button,
 .ai-next-button {
   transition: all 0.3s ease;
 }
 
 .ai-rewrite-button:disabled,
-.ai-undo-button:disabled,
 .ai-prev-button:disabled,
 .ai-next-button:disabled {
   cursor: not-allowed;
@@ -34,8 +32,7 @@
   display: inline-block;
 }
 
-.ai-rewrite-icon,
-.ai-undo-icon {
+.ai-rewrite-icon {
   display: inline-block;
 }
 

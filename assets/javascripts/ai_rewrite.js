@@ -33,13 +33,6 @@
     rewriteButton.type = 'button';
     rewriteButton.className = 'ai-rewrite-button button';
     rewriteButton.innerHTML = '<span class="ai-rewrite-icon"></span> <span class="ai-rewrite-text">Rewrite</span>';
-    
-    // Undo Button (initial versteckt)
-    const undoButton = document.createElement('button');
-    undoButton.type = 'button';
-    undoButton.className = 'ai-undo-button button';
-    undoButton.innerHTML = '<span class="ai-undo-icon"></span> <span class="ai-undo-text">Rückgängig</span>';
-    undoButton.style.cssText = 'display: none;';
 
     // Navigation Buttons (initial versteckt)
     const prevButton = document.createElement('button');
@@ -64,7 +57,6 @@
     promptInput.title = 'Optional: Überschreibt den Standard-System-Prompt';
 
     buttonGroup.appendChild(rewriteButton);
-    buttonGroup.appendChild(undoButton);
     buttonGroup.appendChild(prevButton);
     buttonGroup.appendChild(nextButton);
     buttonGroup.appendChild(promptInput);
@@ -75,11 +67,7 @@
 
     // Event Listeners
     rewriteButton.addEventListener('click', function() {
-      handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton, promptInput);
-    });
-
-    undoButton.addEventListener('click', function() {
-      handleUndo(textarea, rewriteButton, undoButton, prevButton, nextButton);
+      handleRewrite(textarea, rewriteButton, prevButton, nextButton, promptInput);
     });
 
     prevButton.addEventListener('click', function() {
@@ -93,7 +81,7 @@
     // Session-ID initialisieren wenn Textarea fokussiert wird
     textarea.addEventListener('focus', function() {
       if (!currentSessionId) {
-        checkExistingVersions(textarea, undoButton, prevButton, nextButton).then(function(hasVersions) {
+        checkExistingVersions(textarea, prevButton, nextButton).then(function(hasVersions) {
           // Nur neue Session-ID generieren, wenn keine Versionen gefunden wurden
           if (!hasVersions && !currentSessionId) {
             currentSessionId = generateSessionId();
@@ -103,11 +91,11 @@
     });
     
     // Beim Laden prüfen, ob bereits Versionen existieren
-    checkExistingVersions(textarea, undoButton, prevButton, nextButton);
+    checkExistingVersions(textarea, prevButton, nextButton);
   }
   
   // Prüfe ob bereits Versionen für dieses Issue/Field existieren
-  function checkExistingVersions(textarea, undoButton, prevButton, nextButton) {
+  function checkExistingVersions(textarea, prevButton, nextButton) {
     if (currentSessionId) {
       return Promise.resolve(false); // Bereits eine Session vorhanden
     }
@@ -152,7 +140,6 @@
         versionHistory.canGoNext = data.can_go_next;
         
         // Buttons anzeigen
-        undoButton.style.display = 'inline-block';
         prevButton.style.display = 'inline-block';
         nextButton.style.display = 'inline-block';
         updateNavigationButtons(prevButton, nextButton);
@@ -175,7 +162,7 @@
   }
 
   // Rewrite durchführen
-  function handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton, promptInput) {
+  function handleRewrite(textarea, rewriteButton, prevButton, nextButton, promptInput) {
     const originalText = textarea.value;
     
     if (!originalText.trim()) {
@@ -193,11 +180,11 @@
     }
 
     // Immer normale API verwenden (kein Streaming)
-    handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText, promptInput);
+    handleRewriteNormal(textarea, rewriteButton, prevButton, nextButton, originalText, promptInput);
   }
 
   // Normale Rewrite-Funktion (ohne Streaming)
-  function handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText, promptInput) {
+  function handleRewriteNormal(textarea, rewriteButton, prevButton, nextButton, originalText, promptInput) {
     const url = '/ai_rewrite/rewrite';
     
     const formData = new FormData();
@@ -271,69 +258,6 @@
       rewriteButton.disabled = false;
       console.error('Fehler:', error);
       alert('Fehler beim Verbessern des Textes: ' + error.message);
-    });
-  }
-
-  // Rückgängig machen
-  function handleUndo(textarea, rewriteButton, undoButton, prevButton, nextButton) {
-    console.log('Undo aufgerufen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
-    
-    if (!currentVersionId || !currentSessionId) {
-      console.error('Fehlende IDs:', { currentVersionId, currentSessionId });
-      alert('Keine Version zum Rückgängig machen verfügbar.');
-      return;
-    }
-
-    // Originaltext wiederherstellen - hole die erste Version (Original)
-    const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(currentVersionId) + '&direction=original&session_id=' + encodeURIComponent(currentSessionId);
-
-    fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-CSRF-Token': getCSRFToken()
-      }
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.text().then(text => {
-          console.error('HTTP Fehler:', response.status, text);
-          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
-        });
-      }
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return response.json();
-      } else {
-        return response.text().then(text => {
-          throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
-        });
-      }
-    })
-    .then(data => {
-      console.log('Undo Response:', data);
-      
-      if (data.error) {
-        alert('Fehler: ' + data.error);
-        console.error('Undo Error:', data);
-        return;
-      }
-
-      textarea.value = data.text;
-      currentVersionId = data.version_id;
-      versionHistory.canGoPrev = data.can_go_prev;
-      versionHistory.canGoNext = data.can_go_next;
-      updateNavigationButtons(prevButton, nextButton);
-      
-      // Undo-Button verstecken wenn wir beim Original sind
-      if (!data.can_go_next) {
-        undoButton.style.display = 'none';
-      } else {
-        undoButton.style.display = 'inline-block';
-      }
-    })
-    .catch(error => {
-      console.error('Fehler beim Rückgängig machen:', error);
-      alert('Fehler beim Rückgängig machen: ' + error.message);
     });
   }
 
