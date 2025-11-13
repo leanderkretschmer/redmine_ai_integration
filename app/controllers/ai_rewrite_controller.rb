@@ -2,7 +2,7 @@ class AiRewriteController < ApplicationController
   include ActionController::Live
 
   before_action :require_login
-  before_action :check_settings, except: [:test_connection, :rewrite_stream]
+  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests]
   skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection]
 
   def rewrite_stream
@@ -27,8 +27,10 @@ class AiRewriteController < ApplicationController
       session_id = params[:session_id] || generate_session_id
       
       # Originaltext SOFORT speichern, bevor Streaming startet
+      field_type = params[:field_type] || detect_field_type
+      issue_id = params[:issue_id] || extract_issue_id
       Rails.logger.info "Rewrite Stream - Speichere Originaltext für Session: #{session_id}"
-      ensure_original_version_saved(text, session_id)
+      ensure_original_version_saved(text, session_id, field_type, issue_id)
       
       accumulated_text = ''
       
@@ -40,7 +42,7 @@ class AiRewriteController < ApplicationController
       end
       
       # Finales Event mit Version-ID
-      version_id = save_text_version(text, accumulated_text, session_id)
+      version_id = save_text_version(text, accumulated_text, session_id, field_type, issue_id)
       response.stream.write("data: #{JSON.generate({ done: true, version_id: version_id })}\n\n")
       response.stream.flush
       
@@ -64,12 +66,14 @@ class AiRewriteController < ApplicationController
       
       # Session-ID für Version-Speicherung
       session_id = params[:session_id] || generate_session_id
+      field_type = params[:field_type] || detect_field_type
+      issue_id = params[:issue_id] || extract_issue_id
       
       # Originaltext SOFORT speichern
-      ensure_original_version_saved(text, session_id)
+      ensure_original_version_saved(text, session_id, field_type, issue_id)
       
       # Version speichern
-      version_id = save_text_version(text, improved_text, session_id)
+      version_id = save_text_version(text, improved_text, session_id, field_type, issue_id)
       
       render json: { 
         improved_text: improved_text,
@@ -102,7 +106,14 @@ class AiRewriteController < ApplicationController
     
     # Session-ID aus Version-ID extrahieren falls nicht vorhanden
     if session_id.blank? && version_id.present?
-      session_id = version_id.split('_').first
+      # Session-ID ist der Teil vor dem letzten Timestamp
+      parts = version_id.split('_')
+      if parts.length >= 3
+        # Format: user_id_timestamp_random -> user_id_timestamp
+        session_id = parts[0..-2].join('_')
+      else
+        session_id = parts.first
+      end
     end
     
     if direction == 'original'
@@ -129,6 +140,28 @@ class AiRewriteController < ApplicationController
     session_id = params[:session_id]
     clear_text_versions(session_id)
     render json: { success: true }
+  end
+
+  def requests
+    # Hole alle eindeutigen Issue-IDs mit dem neuesten last_changed_on
+    @requests = AiTextVersion.where.not(issue_id: nil)
+                             .select('issue_id, MAX(last_changed_on) as max_last_changed_on')
+                             .group(:issue_id)
+                             .order('MAX(last_changed_on) DESC')
+                             .limit(100)
+                             .map do |r|
+                               issue = Issue.find_by(id: r.issue_id)
+                               next unless issue
+                               
+                               {
+                                 issue_id: r.issue_id,
+                                 last_changed_on: r.max_last_changed_on,
+                                 issue: issue
+                               }
+                             end
+                             .compact # Entferne nil-Einträge
+    
+    render 'requests'
   end
 
   def test_connection
@@ -446,152 +479,142 @@ class AiRewriteController < ApplicationController
     end
   end
 
-  def ensure_original_version_saved(original_text, session_id)
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
+  def ensure_original_version_saved(original_text, session_id, field_type = nil, issue_id = nil)
+    # Prüfen ob bereits eine Original-Version existiert
+    existing = AiTextVersion.where(session_id: session_id).order(:created_at).first
     
-    # Prüfen ob bereits eine Datei existiert
-    if File.exist?(versions_file)
-      versions = JSON.parse(File.read(versions_file))
-      # Prüfen ob bereits eine Original-Version existiert
-      return if versions.any? { |v| v['id'] == "#{session_id}_original" }
-    else
-      versions = []
-    end
+    return if existing && existing.version_id == "#{session_id}_original"
     
-    # Original-Version hinzufügen
-    versions.unshift({
-      id: "#{session_id}_original",
+    # Original-Version erstellen
+    version = AiTextVersion.create!(
+      session_id: session_id,
+      version_id: "#{session_id}_original",
       original_text: original_text,
       improved_text: original_text,
-      timestamp: Time.now.to_i - 1
-    })
+      user_id: User.current.id,
+      issue_id: issue_id,
+      field_type: field_type || detect_field_type,
+      last_changed_on: Time.current
+    )
     
-    Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text"
-    File.write(versions_file, JSON.pretty_generate(versions))
+    Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text, Version ID: #{version.version_id}"
   end
 
-  def save_text_version(original_text, improved_text, session_id = nil)
+  def save_text_version(original_text, improved_text, session_id = nil, field_type = nil, issue_id = nil)
     session_id ||= params[:session_id] || generate_session_id
+    field_type ||= params[:field_type] || detect_field_type
+    issue_id ||= params[:issue_id] || extract_issue_id
+    
+    # Sicherstellen, dass Original-Version existiert
+    ensure_original_version_saved(original_text, session_id, field_type, issue_id) unless AiTextVersion.where(session_id: session_id).exists?
+    
     version_id = "#{session_id}_#{Time.now.to_i}"
     
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
-    
-    Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}"
-    
-    versions = if File.exist?(versions_file)
-      JSON.parse(File.read(versions_file))
-    else
-      # Erste Version: Originaltext speichern
-      []
-    end
-    
-    # Wenn es die erste Version ist, Originaltext speichern (falls nicht bereits gespeichert)
-    if versions.empty? || !versions.any? { |v| v['id'] == "#{session_id}_original" }
-      Rails.logger.info "Save Text Version - First version, saving original text"
-      versions.unshift({
-        id: "#{session_id}_original",
-        original_text: original_text,
-        improved_text: original_text,
-        timestamp: Time.now.to_i - 1
-      })
-    end
-    
-    versions << {
-      id: version_id,
+    version = AiTextVersion.create!(
+      session_id: session_id,
+      version_id: version_id,
       original_text: original_text,
       improved_text: improved_text,
-      timestamp: Time.now.to_i
-    }
+      user_id: User.current.id,
+      issue_id: issue_id,
+      field_type: field_type,
+      last_changed_on: Time.current
+    )
     
-    Rails.logger.info "Save Text Version - Total versions: #{versions.length}"
-    File.write(versions_file, JSON.pretty_generate(versions))
+    Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}, Issue ID: #{issue_id}"
     version_id
   end
 
   def update_version(version_id, text)
-    session_id = version_id.split('_').first
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
-    
-    return unless File.exist?(versions_file)
-    
-    versions = JSON.parse(File.read(versions_file))
-    version = versions.find { |v| v['id'] == version_id }
+    version = AiTextVersion.find_by_version_id(version_id)
     
     if version
-      version['improved_text'] = text
-      File.write(versions_file, JSON.pretty_generate(versions))
+      version.update!(
+        improved_text: text,
+        last_changed_on: Time.current
+      )
     end
   end
 
   def get_text_version(version_id, direction)
-    session_id = version_id.split('_').first
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
+    current_version = AiTextVersion.find_by_version_id(version_id)
+    return nil unless current_version
     
-    return nil unless File.exist?(versions_file)
-    
-    versions = JSON.parse(File.read(versions_file))
-    current_index = versions.find_index { |v| v['id'] == version_id }
-    
-    return nil unless current_index
-    
-    if direction == 'prev' && current_index > 0
-      new_index = current_index - 1
-    elsif direction == 'next' && current_index < versions.length - 1
-      new_index = current_index + 1
+    new_version = case direction
+    when 'prev'
+      current_version.get_prev_version
+    when 'next'
+      current_version.get_next_version
     else
-      return nil
+      nil
     end
     
-    new_version = versions[new_index]
+    return nil unless new_version
+    
     {
-      id: new_version['id'],
-      text: new_version['improved_text'],
-      can_go_prev: new_index > 0,
-      can_go_next: new_index < versions.length - 1
+      id: new_version.version_id,
+      text: new_version.improved_text,
+      can_go_prev: new_version.can_go_prev?,
+      can_go_next: new_version.can_go_next?
     }
   end
 
   def get_original_version(version_id_or_session_id)
-    # Wenn es eine Session-ID ist (beginnt mit "session_"), verwende sie direkt
-    # Ansonsten extrahiere die Session-ID aus der Version-ID
-    session_id = if version_id_or_session_id.to_s.start_with?('session_')
-      version_id_or_session_id
+    # Wenn es eine Version-ID ist, extrahiere die Session-ID
+    # Format: user_id_timestamp_random -> user_id_timestamp
+    session_id = if version_id_or_session_id.to_s.include?('_')
+      parts = version_id_or_session_id.to_s.split('_')
+      if parts.length >= 3
+        # Entferne den letzten Teil (random oder timestamp für version)
+        parts[0..-2].join('_')
+      else
+        version_id_or_session_id
+      end
     else
-      version_id_or_session_id.to_s.split('_').first
+      version_id_or_session_id
     end
     
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
+    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Session ID: #{session_id}"
     
-    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Session ID: #{session_id}, File exists: #{File.exist?(versions_file)}"
+    original_version = AiTextVersion.get_original_for_session(session_id)
     
-    return nil unless File.exist?(versions_file)
+    return nil unless original_version
     
-    versions = JSON.parse(File.read(versions_file))
-    Rails.logger.info "Get Original Version - Found #{versions.length} versions"
+    versions_count = AiTextVersion.for_session(session_id).count
     
-    first_version = versions.first
-    
-    return nil unless first_version
-    
-    Rails.logger.info "Get Original Version - First version ID: #{first_version['id']}, Original text length: #{first_version['original_text'].to_s.length}"
+    Rails.logger.info "Get Original Version - Found original version, ID: #{original_version.version_id}, Total versions: #{versions_count}"
     
     {
-      id: first_version['id'],
-      text: first_version['original_text'],
+      id: original_version.version_id,
+      text: original_version.original_text,
       can_go_prev: false,
-      can_go_next: versions.length > 1
+      can_go_next: versions_count > 1
     }
   end
 
   def clear_text_versions(session_id)
-    versions_file = File.join(plugin_tmp_dir, "#{session_id}.json")
-    File.delete(versions_file) if File.exist?(versions_file)
+    AiTextVersion.where(session_id: session_id).delete_all
   end
-
-  def plugin_tmp_dir
-    dir = File.join(Rails.root, 'tmp', 'redmine_ai_integration')
-    FileUtils.mkdir_p(dir) unless File.directory?(dir)
-    dir
+  
+  def extract_issue_id
+    # Versuche Issue-ID aus der URL zu extrahieren
+    if request.referer
+      match = request.referer.match(/\/issues\/(\d+)/)
+      return match[1].to_i if match
+    end
+    
+    # Versuche aus params
+    params[:issue_id]&.to_i
+  end
+  
+  def detect_field_type
+    # Versuche Field-Type aus der URL oder params zu bestimmen
+    if request.referer
+      return 'notes' if request.referer.include?('notes')
+      return 'description' if request.referer.include?('description')
+    end
+    
+    params[:field_type] || 'description'
   end
 
   def generate_session_id

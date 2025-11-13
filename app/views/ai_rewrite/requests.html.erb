@@ -1,0 +1,41 @@
+<% html_title l(:label_ai_integration_requests) %>
+
+<div class="contextual">
+  <%= link_to l(:label_plugin_settings), plugin_settings_path('redmine_ai_integration'), class: 'icon icon-settings' %>
+</div>
+
+<h2><%= l(:label_ai_integration_requests) %></h2>
+
+<% if @requests.any? %>
+  <table class="list">
+    <thead>
+      <tr>
+        <th><%= l(:field_issue) %></th>
+        <th><%= l(:field_subject) %></th>
+        <th><%= l(:field_last_changed_on) %></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @requests.each do |request| %>
+        <tr>
+          <td>
+            <%= link_to "##{request[:issue].id}", issue_path(request[:issue]) %>
+          </td>
+          <td>
+            <%= link_to request[:issue].subject, issue_path(request[:issue]) %>
+          </td>
+          <td>
+            <%= format_time(request[:last_changed_on]) %>
+          </td>
+          <td class="buttons">
+            <%= link_to l(:button_show), issue_path(request[:issue]), class: 'icon icon-view' %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% end %>
+

@@ -1,3 +1,7 @@
+<div class="contextual">
+  <%= link_to l(:label_ai_integration_requests), '/ai_rewrite/requests', class: 'icon icon-list' %>
+</div>
+
 <%= form_tag({ controller: 'settings', action: 'plugin', id: 'redmine_ai_integration' }, method: :post) do %>
   <div class="box tabular">
     <h3>AI-Provider Einstellungen</h3>

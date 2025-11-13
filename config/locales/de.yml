@@ -1,4 +1,6 @@
 # Übersetzungen für das Plugin
 de:
   label_ai_integration_settings: "AI Integration Einstellungen"
+  label_ai_integration_requests: "AI Integration Requests"
+  field_last_changed_on: "Letzte Änderung"
 
