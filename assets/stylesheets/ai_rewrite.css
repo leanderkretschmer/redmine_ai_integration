@@ -37,14 +37,13 @@
 }
 
 .ai-custom-prompt-input {
-  flex: 1;
-  min-width: 200px;
-  max-width: 400px;
+  width: 100%;
   padding: 4px 8px;
   font-size: 12px;
   border: 1px solid #ccc;
   border-radius: 3px;
-  margin-left: 5px;
+  margin-top: 5px;
+  box-sizing: border-box;
 }
 
 .ai-custom-prompt-input:focus {

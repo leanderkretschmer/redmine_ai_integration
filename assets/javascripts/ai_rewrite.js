@@ -22,11 +22,11 @@
 
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'ai-rewrite-container';
-    buttonContainer.style.cssText = 'position: relative; display: inline-block; width: 100%; margin-top: 5px;';
+    buttonContainer.style.cssText = 'position: relative; display: block; width: 100%; margin-top: 5px;';
 
     const buttonGroup = document.createElement('div');
     buttonGroup.className = 'ai-rewrite-button-group';
-    buttonGroup.style.cssText = 'display: flex; gap: 5px; align-items: center;';
+    buttonGroup.style.cssText = 'display: flex; gap: 5px; align-items: center; margin-bottom: 5px;';
 
     // Rewrite Button
     const rewriteButton = document.createElement('button');
@@ -59,8 +59,8 @@
     buttonGroup.appendChild(rewriteButton);
     buttonGroup.appendChild(prevButton);
     buttonGroup.appendChild(nextButton);
-    buttonGroup.appendChild(promptInput);
     buttonContainer.appendChild(buttonGroup);
+    buttonContainer.appendChild(promptInput);
 
     // Button nach Textarea einfügen
     textarea.parentNode.insertBefore(buttonContainer, textarea.nextSibling);
@@ -236,7 +236,6 @@
       console.log('Rewrite abgeschlossen. Version ID:', currentVersionId, 'Session ID:', currentSessionId);
 
       // Buttons aktualisieren
-      undoButton.style.display = 'inline-block';
       prevButton.style.display = 'inline-block';
       nextButton.style.display = 'inline-block';
       
