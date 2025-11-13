@@ -316,52 +316,51 @@ class AiRewriteController < ApplicationController
     }
 
     request.body = body.to_json
-      
-      begin
-        http.request(request) do |response|
-          if response.code == '200'
-            buffer = ''
-            response.read_body do |chunk|
-              buffer += chunk.to_s
-              # Verarbeite alle vollständigen Zeilen
-              lines = buffer.split("\n")
-              buffer = lines.pop || '' # Letzte unvollständige Zeile bleibt im Buffer
-              
-              lines.each do |line|
-                next if line.empty?
-                begin
-                  parsed = JSON.parse(line)
-                  content = parsed['response']
-                  block.call(content) if content
-                rescue JSON::ParserError
-                  # Ignoriere ungültige JSON-Zeilen
-                end
+    
+    begin
+      http.request(request) do |response|
+        if response.code == '200'
+          buffer = ''
+          response.read_body do |chunk|
+            buffer += chunk.to_s
+            # Verarbeite alle vollständigen Zeilen
+            lines = buffer.split("\n")
+            buffer = lines.pop || '' # Letzte unvollständige Zeile bleibt im Buffer
+            
+            lines.each do |line|
+              next if line.empty?
+              begin
+                parsed = JSON.parse(line)
+                content = parsed['response']
+                block.call(content) if content
+              rescue JSON::ParserError
+                # Ignoriere ungültige JSON-Zeilen
               end
             end
-            # Verarbeite verbleibenden Buffer
-            if buffer.present?
-              buffer.split("\n").each do |line|
-                next if line.empty?
-                begin
-                  parsed = JSON.parse(line)
-                  content = parsed['response']
-                  block.call(content) if content
-                rescue JSON::ParserError
-                end
-              end
-            end
-          else
-            raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
           end
+          # Verarbeite verbleibenden Buffer
+          if buffer.present?
+            buffer.split("\n").each do |line|
+              next if line.empty?
+              begin
+                parsed = JSON.parse(line)
+                content = parsed['response']
+                block.call(content) if content
+              rescue JSON::ParserError
+              end
+            end
+          end
+        else
+          raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
         end
-      rescue Timeout::Error => e
-        Rails.logger.error "Ollama Stream Call - Timeout: #{e.message}"
-        raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
-      rescue => e
-        Rails.logger.error "Ollama Stream Call - Error: #{e.class} - #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
-        raise "Ollama Verbindungsfehler: #{e.message}"
       end
+    rescue Timeout::Error => e
+      Rails.logger.error "Ollama Stream Call - Timeout: #{e.message}"
+      raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
+    rescue => e
+      Rails.logger.error "Ollama Stream Call - Error: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      raise "Ollama Verbindungsfehler: #{e.message}"
     end
   end
 
@@ -409,14 +408,13 @@ class AiRewriteController < ApplicationController
       else
         raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
       end
-      rescue Timeout::Error => e
-        Rails.logger.error "Ollama Call - Timeout: #{e.message}"
-        raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
-      rescue => e
-        Rails.logger.error "Ollama Call - Error: #{e.class} - #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
-        raise "Ollama Verbindungsfehler: #{e.message}"
-      end
+    rescue Timeout::Error => e
+      Rails.logger.error "Ollama Call - Timeout: #{e.message}"
+      raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
+    rescue => e
+      Rails.logger.error "Ollama Call - Error: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      raise "Ollama Verbindungsfehler: #{e.message}"
     end
   end
 
