@@ -23,12 +23,18 @@ class AiRewriteController < ApplicationController
     
     begin
       settings = Setting.plugin_redmine_ai_integration
-      system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
       session_id = params[:session_id] || generate_session_id
       
-      # Custom Prompt verwenden, falls vorhanden
+      # Embedded Prompt (immer verwendet)
+      embedded_prompt = settings['embedded_system_prompt'].presence || ''
+      
+      # Optional Prompt (kann durch custom_prompt überschrieben werden)
       custom_prompt = params[:custom_prompt].presence
-      system_prompt = custom_prompt || system_prompt
+      optional_prompt = custom_prompt || settings['system_prompt'] || ''
+      
+      # Kombiniere beide Prompts
+      system_prompt = [embedded_prompt, optional_prompt].reject(&:blank?).join("\n\n")
+      system_prompt = 'Verbessere den folgenden Text professionell.' if system_prompt.blank?
       
       # Originaltext SOFORT speichern, bevor Streaming startet
       field_type = params[:field_type] || detect_field_type
@@ -112,11 +118,15 @@ class AiRewriteController < ApplicationController
     
     # Session-ID aus Version-ID extrahieren falls nicht vorhanden
     if session_id.blank? && version_id.present?
-      # Session-ID ist der Teil vor dem letzten Timestamp
       parts = version_id.split('_')
       if parts.length >= 3
-        # Format: user_id_timestamp_random -> user_id_timestamp
-        session_id = parts[0..-2].join('_')
+        # Wenn es "_original" am Ende hat, entferne das
+        if parts.last == 'original'
+          session_id = parts[0..-2].join('_')
+        else
+          # Für normale Versionen: user_id_timestamp_random -> user_id_timestamp
+          session_id = parts[0..-2].join('_')
+        end
       else
         session_id = parts.first
       end
@@ -240,8 +250,18 @@ class AiRewriteController < ApplicationController
 
   def call_ai_api(text, provider, custom_prompt = nil)
     settings = Setting.plugin_redmine_ai_integration
-    # Custom Prompt verwenden, falls vorhanden, sonst Standard-Prompt
-    system_prompt = custom_prompt || settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
+    
+    # Embedded Prompt (immer verwendet, kann nicht überschrieben werden)
+    embedded_prompt = settings['embedded_system_prompt'].presence || ''
+    
+    # Optional Prompt (kann durch custom_prompt überschrieben werden)
+    optional_prompt = custom_prompt || settings['system_prompt'] || ''
+    
+    # Kombiniere beide Prompts: Embedded → Optional → Text
+    system_prompt = [embedded_prompt, optional_prompt].reject(&:blank?).join("\n\n")
+    
+    # Fallback falls beide leer sind
+    system_prompt = 'Verbessere den folgenden Text professionell.' if system_prompt.blank?
 
     case provider
     when 'openai'
@@ -566,12 +586,18 @@ class AiRewriteController < ApplicationController
 
   def get_original_version(version_id_or_session_id)
     # Wenn es eine Version-ID ist, extrahiere die Session-ID
-    # Format: user_id_timestamp_random -> user_id_timestamp
+    # Format: user_id_timestamp_random oder user_id_timestamp_original
+    # Session-ID Format: user_id_timestamp
     session_id = if version_id_or_session_id.to_s.include?('_')
       parts = version_id_or_session_id.to_s.split('_')
       if parts.length >= 3
-        # Entferne den letzten Teil (random oder timestamp für version)
-        parts[0..-2].join('_')
+        # Wenn es "_original" am Ende hat, entferne das
+        if parts.last == 'original'
+          parts[0..-2].join('_')
+        else
+          # Für normale Versionen: user_id_timestamp_random -> user_id_timestamp
+          parts[0..-2].join('_')
+        end
       else
         version_id_or_session_id
       end
@@ -579,15 +605,24 @@ class AiRewriteController < ApplicationController
       version_id_or_session_id
     end
     
-    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Session ID: #{session_id}"
+    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Extracted Session ID: #{session_id}"
     
+    # Versuche zuerst mit der extrahierten Session-ID
     original_version = AiTextVersion.get_original_for_session(session_id)
+    
+    # Falls nicht gefunden, versuche direkt mit der übergebenen ID
+    if original_version.nil? && version_id_or_session_id.to_s.end_with?('_original')
+      original_version = AiTextVersion.find_by_version_id(version_id_or_session_id)
+      if original_version
+        session_id = original_version.session_id
+      end
+    end
     
     return nil unless original_version
     
     versions_count = AiTextVersion.for_session(session_id).count
     
-    Rails.logger.info "Get Original Version - Found original version, ID: #{original_version.version_id}, Total versions: #{versions_count}"
+    Rails.logger.info "Get Original Version - Found original version, ID: #{original_version.version_id}, Session ID: #{session_id}, Total versions: #{versions_count}"
     
     {
       id: original_version.version_id,

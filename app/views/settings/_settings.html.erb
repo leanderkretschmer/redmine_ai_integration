@@ -70,11 +70,16 @@
       </p>
     </div>
 
-    <h3>System-Prompt</h3>
+    <h3>System-Prompts</h3>
     <p>
-      <%= label_tag 'settings[system_prompt]', 'System-Prompt für Textverbesserung' %>
+      <%= label_tag 'settings[embedded_system_prompt]', l(:label_embedded_system_prompt) %>
+      <%= text_area_tag 'settings[embedded_system_prompt]', @settings['embedded_system_prompt'], rows: 3, cols: 80, style: 'width: 100%;' %>
+      <em class="info"><%= l(:info_embedded_system_prompt) %></em>
+    </p>
+    <p>
+      <%= label_tag 'settings[system_prompt]', l(:label_optional_system_prompt) %>
       <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
-      <em class="info">Definiert, wie der Text verbessert werden soll. Der Text wird als Variable übergeben.</em>
+      <em class="info"><%= l(:info_optional_system_prompt) %></em>
     </p>
 
     <h3>Verbindung testen</h3>

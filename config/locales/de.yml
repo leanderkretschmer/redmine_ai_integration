@@ -3,4 +3,10 @@ de:
   label_ai_integration_settings: "AI Integration Einstellungen"
   label_ai_integration_requests: "AI Integration Requests"
   field_last_changed_on: "Letzte Änderung"
+  label_embedded_system_prompt: "Embedded System-Prompt"
+  label_optional_system_prompt: "Optionaler System-Prompt"
+  field_embedded_system_prompt: "Embedded System-Prompt"
+  field_optional_system_prompt: "Optionaler System-Prompt"
+  info_embedded_system_prompt: "Dieser Prompt wird immer verwendet und kann nicht überschrieben werden. Wird zuerst an die KI gesendet."
+  info_optional_system_prompt: "Dieser Prompt kann durch einen benutzerdefinierten Prompt im Ticket überschrieben werden. Wird nach dem Embedded Prompt gesendet."
 
