@@ -39,3 +39,20 @@
   display: inline-block;
 }
 
+.ai-custom-prompt-input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  margin-left: 5px;
+}
+
+.ai-custom-prompt-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+}
+

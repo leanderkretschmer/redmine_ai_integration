@@ -56,10 +56,18 @@
     nextButton.style.cssText = 'display: none;';
     nextButton.title = 'Nächste Version';
 
+    // Custom Prompt Input
+    const promptInput = document.createElement('input');
+    promptInput.type = 'text';
+    promptInput.className = 'ai-custom-prompt-input';
+    promptInput.placeholder = 'Optional: Eigener Prompt...';
+    promptInput.title = 'Optional: Überschreibt den Standard-System-Prompt';
+
     buttonGroup.appendChild(rewriteButton);
     buttonGroup.appendChild(undoButton);
     buttonGroup.appendChild(prevButton);
     buttonGroup.appendChild(nextButton);
+    buttonGroup.appendChild(promptInput);
     buttonContainer.appendChild(buttonGroup);
 
     // Button nach Textarea einfügen
@@ -67,7 +75,7 @@
 
     // Event Listeners
     rewriteButton.addEventListener('click', function() {
-      handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton);
+      handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton, promptInput);
     });
 
     undoButton.addEventListener('click', function() {
@@ -91,7 +99,7 @@
   }
 
   // Rewrite durchführen
-  function handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton) {
+  function handleRewrite(textarea, rewriteButton, undoButton, prevButton, nextButton, promptInput) {
     const originalText = textarea.value;
     
     if (!originalText.trim()) {
@@ -109,16 +117,22 @@
     }
 
     // Immer normale API verwenden (kein Streaming)
-    handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText);
+    handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText, promptInput);
   }
 
   // Normale Rewrite-Funktion (ohne Streaming)
-  function handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText) {
+  function handleRewriteNormal(textarea, rewriteButton, undoButton, prevButton, nextButton, originalText, promptInput) {
     const url = '/ai_rewrite/rewrite';
     
     const formData = new FormData();
     formData.append('text', originalText);
     formData.append('session_id', currentSessionId);
+    
+    // Custom Prompt hinzufügen, falls vorhanden
+    const customPrompt = promptInput ? promptInput.value.trim() : '';
+    if (customPrompt) {
+      formData.append('custom_prompt', customPrompt);
+    }
 
     fetch(url, {
       method: 'POST',

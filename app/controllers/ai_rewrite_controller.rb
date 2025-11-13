@@ -26,6 +26,10 @@ class AiRewriteController < ApplicationController
       system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
       session_id = params[:session_id] || generate_session_id
       
+      # Custom Prompt verwenden, falls vorhanden
+      custom_prompt = params[:custom_prompt].presence
+      system_prompt = custom_prompt || system_prompt
+      
       # Originaltext SOFORT speichern, bevor Streaming startet
       field_type = params[:field_type] || detect_field_type
       issue_id = params[:issue_id] || extract_issue_id
@@ -62,7 +66,9 @@ class AiRewriteController < ApplicationController
 
     begin
       provider = Setting.plugin_redmine_ai_integration['ai_provider']
-      improved_text = call_ai_api(text, provider)
+      # Custom Prompt verwenden, falls vorhanden, sonst Standard-Prompt
+      custom_prompt = params[:custom_prompt].presence
+      improved_text = call_ai_api(text, provider, custom_prompt)
       
       # Session-ID für Version-Speicherung
       session_id = params[:session_id] || generate_session_id
@@ -232,9 +238,10 @@ class AiRewriteController < ApplicationController
     true
   end
 
-  def call_ai_api(text, provider)
+  def call_ai_api(text, provider, custom_prompt = nil)
     settings = Setting.plugin_redmine_ai_integration
-    system_prompt = settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
+    # Custom Prompt verwenden, falls vorhanden, sonst Standard-Prompt
+    system_prompt = custom_prompt || settings['system_prompt'] || 'Verbessere den folgenden Text professionell.'
 
     case provider
     when 'openai'
