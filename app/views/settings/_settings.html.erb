@@ -25,9 +25,10 @@
         <em class="info">Ihr OpenAI API-Schlüssel</em>
       </p>
       <p>
-        <%= label_tag 'settings[openai_model]', 'OpenAI Modell' %>
-        <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40 %>
-        <em class="info">z.B. gpt-3.5-turbo, gpt-4</em>
+        <%= label_tag 'settings[openai_model]', 'OpenAI (ChatGPT) Modell' %>
+        <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40, id: 'openai_model_input' %>
+        <select id="openai_model_select" style="display:none; margin-left: 8px;"></select>
+        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
       </p>
     </div>
 
@@ -39,8 +40,9 @@
       </p>
       <p>
         <%= label_tag 'settings[ollama_model]', 'Ollama Modell' %>
-        <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40 %>
-        <em class="info">z.B. llama2, mistral, codellama</em>
+        <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40, id: 'ollama_model_input' %>
+        <select id="ollama_model_select" style="display:none; margin-left: 8px;"></select>
+        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
       </p>
     </div>
 
@@ -52,8 +54,9 @@
       </p>
       <p>
         <%= label_tag 'settings[gemini_model]', 'Gemini Modell' %>
-        <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40 %>
-        <em class="info">z.B. gemini-pro, gemini-pro-vision</em>
+        <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40, id: 'gemini_model_input' %>
+        <select id="gemini_model_select" style="display:none; margin-left: 8px;"></select>
+        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
       </p>
     </div>
 
@@ -65,8 +68,9 @@
       </p>
       <p>
         <%= label_tag 'settings[claude_model]', 'Claude Modell' %>
-        <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40 %>
-        <em class="info">z.B. claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307</em>
+        <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40, id: 'claude_model_input' %>
+        <select id="claude_model_select" style="display:none; margin-left: 8px;"></select>
+        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
       </p>
     </div>
 
@@ -175,10 +179,36 @@
           messageDiv.innerHTML = '<strong style="color: green;">' + (data.message || 'Verbindung erfolgreich') + '</strong>';
           
           if (data.models && data.models.length > 0) {
-            modelsDiv.innerHTML = '<strong>Verfügbare Modelle:</strong><ul style="margin-top: 5px; margin-left: 20px;">' +
-              data.models.map(function(model) {
-                return '<li>' + model + '</li>';
-              }).join('') + '</ul>';
+            modelsDiv.innerHTML = '';
+            const provider = providerSelect.value;
+            let selectEl = null;
+            let inputEl = null;
+            if (provider === 'openai') {
+              selectEl = document.getElementById('openai_model_select');
+              inputEl = document.getElementById('openai_model_input');
+            } else if (provider === 'gemini') {
+              selectEl = document.getElementById('gemini_model_select');
+              inputEl = document.getElementById('gemini_model_input');
+            } else if (provider === 'ollama') {
+              selectEl = document.getElementById('ollama_model_select');
+              inputEl = document.getElementById('ollama_model_input');
+            } else if (provider === 'claude') {
+              selectEl = document.getElementById('claude_model_select');
+              inputEl = document.getElementById('claude_model_input');
+            }
+            if (selectEl && inputEl) {
+              selectEl.innerHTML = '';
+              data.models.forEach(function(m) {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                selectEl.appendChild(opt);
+              });
+              selectEl.style.display = 'inline-block';
+              selectEl.addEventListener('change', function() {
+                inputEl.value = selectEl.value;
+              });
+            }
           } else {
             modelsDiv.innerHTML = '';
           }
@@ -205,4 +235,3 @@
     });
   });
 </script>
-

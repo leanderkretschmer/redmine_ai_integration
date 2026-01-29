@@ -3,6 +3,7 @@ class AiTextVersion < ActiveRecord::Base
   
   belongs_to :user
   belongs_to :issue, optional: true
+  belongs_to :journal, optional: true, class_name: 'Journal'
   
   validates :session_id, presence: true
   validates :version_id, presence: true
@@ -10,6 +11,7 @@ class AiTextVersion < ActiveRecord::Base
   validates :improved_text, presence: true
   validates :user_id, presence: true
   validates :field_type, presence: true
+  validates :version_number, presence: true
   
   scope :for_session, ->(session_id) { where(session_id: session_id).order(:created_at) }
   scope :for_issue, ->(issue_id) { where(issue_id: issue_id).order(last_changed_on: :desc) }
@@ -42,5 +44,9 @@ class AiTextVersion < ActiveRecord::Base
   def get_next_version
     self.class.for_session(session_id).where('created_at > ?', created_at).order(:created_at).first
   end
-end
 
+  def self.next_version_number_for(session_id, field_type)
+    last = where(session_id: session_id, field_type: field_type).order(version_number: :desc).limit(1).first
+    last ? (last.version_number + 1) : 1
+  end
+end

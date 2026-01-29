@@ -7,6 +7,7 @@
   display: flex;
   gap: 5px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .ai-rewrite-button,
@@ -36,6 +37,19 @@
   display: inline-block;
 }
 
+.ai-version-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.ai-version-select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
 .ai-custom-prompt-input {
   width: 100%;
   padding: 4px 8px;
@@ -51,4 +65,3 @@
   border-color: #4a90e2;
   box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
 }
-

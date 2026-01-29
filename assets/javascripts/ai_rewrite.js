@@ -49,6 +49,12 @@
     nextButton.style.cssText = 'display: none;';
     nextButton.title = 'Nächste Version';
 
+    // Versionsauswahl (Dropdown)
+    const versionSelect = document.createElement('select');
+    versionSelect.className = 'ai-version-select';
+    versionSelect.style.cssText = 'display:none; min-width: 120px;';
+    versionSelect.title = 'Version auswählen';
+
     // Custom Prompt Input
     const promptInput = document.createElement('input');
     promptInput.type = 'text';
@@ -59,6 +65,7 @@
     buttonGroup.appendChild(rewriteButton);
     buttonGroup.appendChild(prevButton);
     buttonGroup.appendChild(nextButton);
+    buttonGroup.appendChild(versionSelect);
     buttonContainer.appendChild(buttonGroup);
     buttonContainer.appendChild(promptInput);
 
@@ -78,6 +85,12 @@
       handleNavigateVersion(textarea, 'next', prevButton, nextButton);
     });
 
+    versionSelect.addEventListener('change', function() {
+      const selectedVersionId = versionSelect.value;
+      if (!selectedVersionId) return;
+      handleNavigateExactVersion(textarea, selectedVersionId, prevButton, nextButton);
+    });
+
     // Session-ID initialisieren wenn Textarea fokussiert wird
     textarea.addEventListener('focus', function() {
       if (!currentSessionId) {
@@ -91,7 +104,11 @@
     });
     
     // Beim Laden prüfen, ob bereits Versionen existieren
-    checkExistingVersions(textarea, prevButton, nextButton);
+    checkExistingVersions(textarea, prevButton, nextButton).then(function(hasVersions){
+      if (hasVersions) {
+        populateVersionSelect(versionSelect, textarea);
+      }
+    });
   }
   
   // Prüfe ob bereits Versionen für dieses Issue/Field existieren
@@ -244,6 +261,13 @@
       versionHistory.canGoNext = false;
       updateNavigationButtons(prevButton, nextButton);
 
+      // Versionsauswahl aktualisieren
+      const versionSelect = textarea.parentNode.querySelector('.ai-version-select');
+      if (versionSelect) {
+        populateVersionSelect(versionSelect, textarea);
+        versionSelect.style.display = 'inline-block';
+      }
+
       // Event für Textänderungen durch Benutzer
       textarea.addEventListener('input', function onInput() {
         if (currentVersionId) {
@@ -307,6 +331,12 @@
       versionHistory.canGoPrev = data.can_go_prev;
       versionHistory.canGoNext = data.can_go_next;
       updateNavigationButtons(prevButton, nextButton);
+
+      // Versionsauswahl aktualisieren
+      const versionSelect = textarea.parentNode.querySelector('.ai-version-select');
+      if (versionSelect) {
+        setSelectedVersionInSelect(versionSelect, currentVersionId);
+      }
     })
     .catch(error => {
       console.error('Fehler bei Navigation:', error);
@@ -335,6 +365,94 @@
     }).catch(error => {
       console.error('Fehler beim Speichern der Version:', error);
     });
+  }
+
+  // Exakte Version laden
+  function handleNavigateExactVersion(textarea, versionId, prevButton, nextButton) {
+    const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(versionId) + '&direction=exact&session_id=' + encodeURIComponent(currentSessionId || '');
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-CSRF-Token': getCSRFToken()
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200));
+        });
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        return response.text().then(text => {
+          throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
+        });
+      }
+    })
+    .then(data => {
+      textarea.value = data.text;
+      currentVersionId = data.version_id;
+      versionHistory.canGoPrev = data.can_go_prev;
+      versionHistory.canGoNext = data.can_go_next;
+      updateNavigationButtons(prevButton, nextButton);
+    })
+    .catch(error => {
+      console.error('Fehler beim Laden der Version:', error);
+      alert('Fehler beim Laden der Version: ' + error.message);
+    });
+  }
+
+  // Versionsliste abrufen und Dropdown füllen
+  function populateVersionSelect(versionSelect, textarea) {
+    const issueId = extractIssueIdFromUrl();
+    let fieldType = 'description';
+    if (textarea.id && textarea.id.includes('notes')) {
+      fieldType = 'notes';
+    } else if (textarea.id && textarea.id.includes('description')) {
+      fieldType = 'description';
+    }
+    const params = new URLSearchParams();
+    if (currentSessionId) params.append('session_id', currentSessionId);
+    if (issueId) params.append('issue_id', issueId);
+    params.append('field_type', fieldType);
+    const url = '/ai_rewrite/list_versions?' + params.toString();
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-CSRF-Token': getCSRFToken()
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      const versions = data.versions || [];
+      versionSelect.innerHTML = '';
+      versions.forEach(function(v) {
+        const opt = document.createElement('option');
+        opt.value = v.version_id;
+        opt.textContent = v.label;
+        versionSelect.appendChild(opt);
+      });
+      if (versions.length > 0) {
+        versionSelect.style.display = 'inline-block';
+        setSelectedVersionInSelect(versionSelect, currentVersionId);
+      } else {
+        versionSelect.style.display = 'none';
+      }
+    })
+    .catch(error => {
+      console.error('Fehler beim Laden der Versionsliste:', error);
+    });
+  }
+
+  function setSelectedVersionInSelect(versionSelect, versionId) {
+    if (!versionId) return;
+    const options = Array.from(versionSelect.options);
+    const found = options.find(o => o.value === versionId);
+    if (found) {
+      versionSelect.value = versionId;
+    }
   }
 
   // Navigation-Buttons aktualisieren
@@ -456,4 +574,3 @@
   // Initialisierung starten
   init();
 })();
-

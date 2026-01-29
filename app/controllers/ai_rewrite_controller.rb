@@ -2,8 +2,8 @@ class AiRewriteController < ApplicationController
   include ActionController::Live
 
   before_action :require_login
-  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests, :check_versions]
-  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection, :check_versions]
+  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests, :check_versions, :list_versions]
+  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection, :check_versions, :list_versions]
 
   def rewrite_stream
     text = params[:text]
@@ -538,12 +538,15 @@ class AiRewriteController < ApplicationController
     version = AiTextVersion.create!(
       session_id: session_id,
       version_id: "#{session_id}_original",
+      version_number: 0,
       original_text: original_text,
       improved_text: original_text,
       user_id: User.current.id,
       issue_id: issue_id,
       field_type: field_type || detect_field_type,
-      last_changed_on: Time.current
+      last_changed_on: Time.current,
+      journal_id: params[:journal_id],
+      fixed_version_id: fetch_fixed_version_id(issue_id)
     )
     
     Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text, Version ID: #{version.version_id}"
@@ -558,16 +561,20 @@ class AiRewriteController < ApplicationController
     ensure_original_version_saved(original_text, session_id, field_type, issue_id) unless AiTextVersion.where(session_id: session_id).exists?
     
     version_id = "#{session_id}_#{Time.now.to_i}"
+    version_number = AiTextVersion.next_version_number_for(session_id, field_type)
     
     version = AiTextVersion.create!(
       session_id: session_id,
       version_id: version_id,
+      version_number: version_number,
       original_text: original_text,
       improved_text: improved_text,
       user_id: User.current.id,
       issue_id: issue_id,
       field_type: field_type,
-      last_changed_on: Time.current
+      last_changed_on: Time.current,
+      journal_id: params[:journal_id],
+      fixed_version_id: fetch_fixed_version_id(issue_id)
     )
     
     Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}, Issue ID: #{issue_id}"
@@ -594,6 +601,8 @@ class AiRewriteController < ApplicationController
       current_version.get_prev_version
     when 'next'
       current_version.get_next_version
+    when 'exact'
+      current_version
     else
       nil
     end
@@ -684,6 +693,43 @@ class AiRewriteController < ApplicationController
   def generate_session_id
     user_id = User.current&.id || 'anonymous'
     "#{user_id}_#{Time.now.to_i}_#{SecureRandom.hex(8)}"
+  end
+
+  def fetch_fixed_version_id(issue_id)
+    return nil unless issue_id
+    issue = Issue.find_by(id: issue_id)
+    issue&.fixed_version_id
+  end
+
+  def list_versions_for_session(session_id, field_type = nil)
+    relation = AiTextVersion.where(session_id: session_id)
+    relation = relation.where(field_type: field_type) if field_type.present?
+    relation.order(:version_number, :created_at).map do |v|
+      {
+        version_id: v.version_id,
+        version_number: v.version_number,
+        label: "v#{v.version_number}",
+        created_at: v.created_at
+      }
+    end
+  end
+
+  public
+
+  def list_versions
+    session_id = params[:session_id]
+    issue_id = params[:issue_id]&.to_i
+    field_type = params[:field_type]
+
+    if session_id.blank? && issue_id.present?
+      latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
+      session_id = latest&.session_id
+    end
+
+    return render json: { versions: [] } if session_id.blank?
+
+    versions = list_versions_for_session(session_id, field_type)
+    render json: { session_id: session_id, versions: versions }
   end
 
   def test_openai_connection(settings)
@@ -860,4 +906,3 @@ class AiRewriteController < ApplicationController
     end
   end
 end
-
