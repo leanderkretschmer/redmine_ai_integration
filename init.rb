@@ -13,7 +13,7 @@ Redmine::Plugin.register :redmine_ai_integration do
     'ollama_url' => 'http://localhost:11434',
     'ollama_model' => 'llama2',
     'gemini_api_key' => '',
-    'gemini_model' => 'gemini-pro',
+    'gemini_model' => 'gemini-1.5-pro',
     'claude_api_key' => '',
     'claude_model' => 'claude-3-sonnet-20240229',
     'embedded_system_prompt' => 'Du bist ein professioneller Textkorrektor.',

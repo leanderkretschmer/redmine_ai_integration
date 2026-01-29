@@ -467,7 +467,8 @@ class AiRewriteController < ApplicationController
     require 'json'
 
     api_key = settings['gemini_api_key']
-    model = settings['gemini_model'] || 'gemini-pro'
+    model = settings['gemini_model'].presence || 'gemini-1.5-pro'
+    model = model.to_s.split('/').last # 'models/gemini-1.5-pro' -> 'gemini-1.5-pro'
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
@@ -852,7 +853,11 @@ class AiRewriteController < ApplicationController
 
     if response.code == '200'
       models_data = JSON.parse(response.body)
-      models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+      models = if models_data['models']
+        models_data['models'].map { |m| m['name'].to_s.split('/').last }
+      else
+        []
+      end
       Rails.logger.info "Gemini Test - Gefundene Modelle: #{models.count}"
       { success: true, message: 'Verbindung erfolgreich', models: models }
     else
