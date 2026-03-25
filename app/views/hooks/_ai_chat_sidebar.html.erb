@@ -1,5 +1,5 @@
 <div id="ai-chat-sidebar" class="ai-chat-container">
-  <h3>🤖 KI-Assistent</h3>
+  <h3>KI-Assistent</h3>
   <div class="ai-chat-messages" id="ai-chat-messages">
     <div class="ai-chat-welcome">
       <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
@@ -104,6 +104,15 @@ function addAIChatMessage(sender, content, journalReferences) {
     welcomeMsg.remove();
   }
   
+  // Vermeide doppelte Nachrichten - prüfe auf vorhandene Nachrichten mit gleichem Inhalt
+  const existingMessages = messagesContainer.querySelectorAll('.ai-chat-message');
+  for (let msg of existingMessages) {
+    const contentDiv = msg.querySelector('.ai-chat-content');
+    if (contentDiv && contentDiv.textContent === content) {
+      return; // Nachricht existiert bereits, nicht hinzufügen
+    }
+  }
+  
   const messageDiv = document.createElement('div');
   messageDiv.className = 'ai-chat-message ai-chat-' + sender;
   
@@ -202,15 +211,49 @@ function loadAIChatHistory() {
 }
 
 // Initialisierung beim Laden der Seite
+function tryInitAIChat() {
+  // Stelle sicher, dass die Sidebar geladen ist
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) {
+    console.log('Sidebar noch nicht geladen');
+    return false;
+  }
+  
+  // Stelle sicher, dass unser Container existiert
+  const chatContainer = document.getElementById('ai-chat-sidebar');
+  if (!chatContainer) {
+    console.log('Chat-Container noch nicht geladen');
+    return false;
+  }
+  
+  initAIChat();
+  return true;
+}
+
+// Versuche mehrmals zu initialisieren
+let initAttempts = 0;
+const maxAttempts = 10;
+
+function scheduleInit() {
+  if (initAttempts < maxAttempts) {
+    initAttempts++;
+    if (tryInitAIChat()) {
+      console.log('AI Chat erfolgreich initialisiert');
+    } else {
+      setTimeout(scheduleInit, 1000); // Warte 1 Sekunde
+    }
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAIChat);
+  document.addEventListener('DOMContentLoaded', scheduleInit);
 } else {
   // DOM ist bereits geladen
-  setTimeout(initAIChat, 500);
+  scheduleInit();
 }
 
 // Fallback: Versuche es erneut, wenn die Seite vollständig geladen ist
 window.addEventListener('load', function() {
-  setTimeout(initAIChat, 1000);
+  setTimeout(tryInitAIChat, 2000); // Warte 2 Sekunden
 });
 </script>
