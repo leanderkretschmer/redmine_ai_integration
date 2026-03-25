@@ -1,5 +1,10 @@
 <div id="ai-chat-sidebar" class="ai-chat-container">
-  <h3>KI-Assistent</h3>
+  <div class="ai-chat-header">
+    <h3>KI-Assistent</h3>
+    <button id="ai-chat-clear" class="ai-chat-clear-btn" onclick="clearAIChat()" title="Chat-Verlauf löschen">
+      <span>Verlauf löschen</span>
+    </button>
+  </div>
   <div class="ai-chat-messages" id="ai-chat-messages">
     <div class="ai-chat-welcome">
       <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
@@ -92,6 +97,37 @@ function sendAIChatMessage() {
   .catch(error => {
     showAIChatLoading(false);
     addAIChatMessage('error', 'Fehler: ' + error.message);
+  });
+}
+
+function clearAIChat() {
+  if (!currentIssueId || !confirm('Möchten Sie den Chat-Verlauf wirklich löschen?')) return;
+  
+  fetch('/ai_chat/clear', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    },
+    body: JSON.stringify({ issue_id: currentIssueId })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Leere das Nachrichten-Fenster
+      const messagesContainer = document.getElementById('ai-chat-messages');
+      messagesContainer.innerHTML = `
+        <div class="ai-chat-welcome">
+          <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
+        </div>
+      `;
+    } else {
+      alert('Fehler beim Löschen des Verlaufs: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Fehler beim Löschen des Verlaufs:', error);
+    alert('Fehler beim Löschen des Verlaufs: ' + error.message);
   });
 }
 

@@ -187,14 +187,23 @@
       ensureOriginalVersionSaved(originalText, sessionData.sessionId, fieldType, issueId, journalId);
     }
 
+    // Hole Settings
+    const settings = window.redmineAISettings || {};
+    const provider = settings.ai_provider || 'ollama';
+    const isStreaming = settings.ollama_streaming === '1' && provider === 'ollama';
+
     // Button-Status setzen
     setButtonLoading(button, true);
     button.disabled = true;
 
-    // Hole Settings
-    const settings = window.redmineAISettings || {};
-    const provider = settings.ai_provider || 'openai';
+    if (isStreaming) {
+      handleStreamingRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, sessionData, fieldType, issueId, journalId, provider);
+    } else {
+      handleStandardRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, sessionData, fieldType, issueId, journalId, provider, requestType);
+    }
+  }
 
+  function handleStandardRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, sessionData, fieldType, issueId, journalId, provider, requestType) {
     // Erstelle Anfrage
     const formData = new FormData();
     formData.append('original_text', originalText);
@@ -264,6 +273,70 @@
       console.error('Fehler bei der KI-Anfrage:', error);
       alert('Fehler bei der KI-Anfrage: ' + error.message);
     });
+  }
+
+  function handleStreamingRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, sessionData, fieldType, issueId, journalId, provider) {
+    textarea.value = ''; // Leere Textarea für Streaming
+    let fullText = '';
+    
+    const params = new URLSearchParams({
+      original_text: originalText,
+      system_prompt: systemPrompt,
+      provider: provider
+    });
+
+    const eventSource = new EventSource('/ai_rewrite/rewrite_stream?' + params.toString());
+    
+    eventSource.onmessage = function(event) {
+      if (event.data === '[DONE]') {
+        eventSource.close();
+        finishRequest();
+      } else if (event.data.startsWith('[ERROR:')) {
+        eventSource.close();
+        alert('Streaming Fehler: ' + event.data);
+        finishRequest();
+      } else {
+        fullText += event.data;
+        textarea.value = fullText;
+        textarea.scrollTop = textarea.scrollHeight;
+      }
+    };
+
+    eventSource.onerror = function(err) {
+      console.error('EventSource failed:', err);
+      eventSource.close();
+      finishRequest();
+    };
+
+    function finishRequest() {
+      setButtonLoading(button, false);
+      button.disabled = false;
+      
+      // Speichere die Version am Ende des Streamings
+      const formData = new FormData();
+      formData.append('text', textarea.value);
+      formData.append('original_text', originalText);
+      formData.append('session_id', sessionData.sessionId);
+      formData.append('field_type', fieldType);
+      formData.append('issue_id', issueId || '');
+      if (journalId) formData.append('journal_id', journalId);
+
+      fetch('/ai_rewrite/save_version', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': getCSRFToken()
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        sessionData.versionId = data.version_id;
+        prevButton.style.display = 'inline-block';
+        nextButton.style.display = 'inline-block';
+        sessionData.versionHistory.canGoPrev = true;
+        updateNavigationButtons(textarea, prevButton, nextButton);
+      });
+    }
   }
 
   // Alte Rewrite-Funktion (umbenannt für Kompatibilität)

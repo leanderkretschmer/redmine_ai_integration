@@ -74,6 +74,18 @@ class AiChatController < ApplicationController
     }
   end
   
+  def clear
+    issue_id = params[:issue_id]
+    return render json: { error: 'Issue-ID fehlt' }, status: 400 if issue_id.blank?
+    
+    begin
+      AiChatMessage.where(issue_id: issue_id, user_id: User.current.id).destroy_all
+      render json: { success: true }
+    rescue => e
+      render json: { error: e.message }, status: 500
+    end
+  end
+  
   private
   
   def build_chat_system_prompt(issue, context)

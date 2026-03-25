@@ -12,3 +12,4 @@ get 'ai_rewrite/check_versions', to: 'ai_rewrite#check_versions'
 # AI Chat Routes
 post 'ai_chat/ask', to: 'ai_chat#ask'
 get 'ai_chat/history', to: 'ai_chat#history'
+post 'ai_chat/clear', to: 'ai_chat#clear'

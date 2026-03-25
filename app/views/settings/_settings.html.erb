@@ -118,6 +118,20 @@
       gap: 10px;
       margin: 10px 0;
     }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+      cursor: pointer;
+    }
+    
+    .checkbox-label input[type="checkbox"] {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+    }
   </style>
 <% end %>
 
@@ -171,12 +185,10 @@
         </div>
         <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
-      <div class="toggle-label">
-        <label class="toggle-switch">
-          <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
-          <span class="toggle-slider"></span>
-        </label>
-        <span>Streaming Response aktivieren</span>
+      
+      <div class="checkbox-label">
+        <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
+        <%= label_tag 'ollama_streaming_toggle', 'Streaming Response aktivieren' %>
       </div>
     </div>
 
@@ -234,15 +246,12 @@
           <em class="info">Benutzerdefinierter Prompt für Textverbesserung</em>
         </p>
         
-        <div class="toggle-label">
-          <label class="toggle-switch">
-            <%= check_box_tag 'settings[slim_response]', '1', @settings['slim_response'] == '1', id: 'slim_response_toggle' %>
-            <span class="toggle-slider"></span>
-          </label>
-          <span>Slim Response (nur das Wesentliche)</span>
+        <div class="checkbox-label">
+          <%= check_box_tag 'settings[slim_response]', '1', @settings['slim_response'] == '1', id: 'slim_response_toggle' %>
+          <%= label_tag 'slim_response_toggle', 'Slim Response (nur das Wesentliche)' %>
         </div>
         
-        <p style="margin-top: 15px;">
+        <p style="margin-top: 5px;">
           <em class="info">Bei aktiviertem "Slim Response" wird ein optimierter Prompt verwendet, der nur das vom Benutzer Gewünschte zurückgibt.</em>
         </p>
       </div>
