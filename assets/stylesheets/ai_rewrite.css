@@ -1,47 +1,91 @@
-.ai-rewrite-container {
-  margin-top: 5px;
-  margin-bottom: 5px;
+/* AI Rewrite Plugin Styles */
+
+/* Container und Button-Gruppen */
+.ai-buttons-container {
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
-.ai-rewrite-button-group {
+.ai-button-group {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   align-items: center;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
-.ai-rewrite-button,
+/* Neue AI-Buttons */
+.ai-correction-button,
+.ai-complex-button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ai-correction-button:hover {
+  background: linear-gradient(to bottom, #e8f4f8, #d1e7ed);
+  border-color: #4a90e2;
+  color: #2c5aa0;
+}
+
+.ai-complex-button:hover {
+  background: linear-gradient(to bottom, #f0e8ff, #e0d1ff);
+  border-color: #8b5cf6;
+  color: #6d28d9;
+}
+
+.ai-correction-button:active,
+.ai-complex-button:active {
+  transform: translateY(1px);
+}
+
+.ai-correction-button:disabled,
+.ai-complex-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Navigation Buttons (bestehend) */
 .ai-prev-button,
 .ai-next-button {
-  transition: all 0.3s ease;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 32px;
 }
 
-.ai-rewrite-button:disabled,
+.ai-prev-button:hover,
+.ai-next-button:hover {
+  background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
+  border-color: #999;
+}
+
 .ai-prev-button:disabled,
 .ai-next-button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.ai-spinning {
-  animation: spin 1s linear infinite;
-  display: inline-block;
-}
-
-.ai-rewrite-icon {
-  display: inline-block;
-}
-
+/* Versions-Dropdown */
 .ai-version-select {
-  padding: 4px 8px;
+  padding: 6px 8px;
   font-size: 12px;
   border: 1px solid #ccc;
   border-radius: 3px;
+  background: white;
+  min-width: 80px;
 }
 
 .ai-version-select:focus {
@@ -50,18 +94,78 @@
   box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
 }
 
-.ai-custom-prompt-input {
+/* Komplexe Anfrage Input */
+.ai-complex-input {
   width: 100%;
-  padding: 4px 8px;
+  padding: 6px 8px;
   font-size: 12px;
   border: 1px solid #ccc;
   border-radius: 3px;
-  margin-top: 5px;
-  box-sizing: border-box;
+  background: white;
+  margin-top: 4px;
 }
 
-.ai-custom-prompt-input:focus {
+.ai-complex-input:focus {
   outline: none;
   border-color: #4a90e2;
   box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
+/* Lade-Animation */
+.ai-loading .ai-correction-button span:last-child,
+.ai-loading .ai-complex-button span:last-child {
+  display: inline-block;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ai-button-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .ai-correction-button,
+  .ai-complex-button,
+  .ai-prev-button,
+  .ai-next-button,
+  .ai-version-select {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .ai-correction-button,
+  .ai-complex-button,
+  .ai-prev-button,
+  .ai-next-button {
+    background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
+    border-color: #555;
+    color: #e0e0e0;
+  }
+  
+  .ai-correction-button:hover {
+    background: linear-gradient(to bottom, #2a4a5a, #1a3a4a);
+    border-color: #4a90e2;
+  }
+  
+  .ai-complex-button:hover {
+    background: linear-gradient(to bottom, #4a3a6a, #3a2a5a);
+    border-color: #8b5cf6;
+  }
+  
+  .ai-version-select,
+  .ai-complex-input {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #e0e0e0;
+  }
 }

@@ -1,251 +1,173 @@
 class AiRewriteController < ApplicationController
-  include ActionController::Live
-
-  before_action :require_login
-  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests, :check_versions, :list_versions]
-  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection, :check_versions, :list_versions]
-
-  def rewrite_stream
-    text = params[:text]
-    return render json: { error: 'Kein Text angegeben' }, status: 400 if text.blank?
-
-    provider = Setting.plugin_redmine_ai_integration['ai_provider']
+  before_action :check_settings, except: [:test_connection, :rewrite_stream, :requests, :check_versions, :list_versions, :settings]
+  skip_before_action :verify_authenticity_token, only: [:rewrite, :rewrite_stream, :save_version, :get_version, :clear_versions, :test_connection, :check_versions, :list_versions, :settings]
+  
+  def rewrite
+    original_text = params[:original_text]
+    system_prompt = params[:system_prompt]
+    session_id = params[:session_id] || generate_session_id
+    field_type = params[:field_type] || 'description'
+    issue_id = params[:issue_id]
+    provider = params[:provider] || Setting.plugin_redmine_ai_integration['ai_provider']
+    request_type = params[:request_type] || 'rewrite'
     
-    # Nur Ollama unterstützt Streaming aktuell
-    unless provider == 'ollama'
-      return render json: { error: 'Streaming wird nur für Ollama unterstützt' }, status: 400
-    end
-
-    # SSE-Response vorbereiten
-    response.headers['Content-Type'] = 'text/event-stream'
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'
+    return render json: { error: 'Original-Text fehlt' }, status: 400 if original_text.blank?
+    return render json: { error: 'System-Prompt fehlt' }, status: 400 if system_prompt.blank?
+    
+    settings = Setting.plugin_redmine_ai_integration
     
     begin
-      settings = Setting.plugin_redmine_ai_integration
-      session_id = params[:session_id] || generate_session_id
-      
-      # Embedded Prompt (immer verwendet)
-      embedded_prompt = settings['embedded_system_prompt'].presence || ''
-      
-      # Optional Prompt (kann durch custom_prompt überschrieben werden)
-      custom_prompt = params[:custom_prompt].presence
-      optional_prompt = custom_prompt || settings['system_prompt'] || ''
-      
-      # Kombiniere beide Prompts
-      system_prompt = [embedded_prompt, optional_prompt].reject(&:blank?).join("\n\n")
-      system_prompt = 'Verbessere den folgenden Text professionell.' if system_prompt.blank?
-      
-      # Originaltext SOFORT speichern, bevor Streaming startet
-      field_type = params[:field_type] || detect_field_type
-      issue_id = params[:issue_id] || extract_issue_id
-      Rails.logger.info "Rewrite Stream - Speichere Originaltext für Session: #{session_id}"
-      ensure_original_version_saved(text, session_id, field_type, issue_id)
-      
-      accumulated_text = ''
-      
-      call_ollama_stream(text, system_prompt, settings, session_id) do |chunk|
-        accumulated_text += chunk
-        # Jeden Chunk als SSE-Event senden und sofort flushen
-        response.stream.write("data: #{JSON.generate({ text: chunk })}\n\n")
-        response.stream.flush
+      improved_text = case provider
+      when 'openai'
+        call_openai(original_text, system_prompt, settings)
+      when 'gemini'
+        call_gemini(original_text, system_prompt, settings)
+      when 'claude'
+        call_claude(original_text, system_prompt, settings)
+      when 'ollama'
+        call_ollama(original_text, system_prompt, settings)
+      else
+        raise "Unbekannter Provider: #{provider}"
       end
       
-      # Finales Event mit Version-ID
-      version_id = save_text_version(text, accumulated_text, session_id, field_type, issue_id)
-      response.stream.write("data: #{JSON.generate({ done: true, version_id: version_id })}\n\n")
-      response.stream.flush
+      version_id = save_text_version(original_text, improved_text, session_id, field_type, issue_id)
       
-    rescue => e
-      Rails.logger.error "AI Rewrite Stream Fehler: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      response.stream.write("data: #{JSON.generate({ error: e.message })}\n\n")
-      response.stream.flush
-    ensure
-      response.stream.close
-    end
-  end
-
-  def rewrite
-    text = params[:text]
-    return render json: { error: 'Kein Text angegeben' }, status: 400 if text.blank?
-
-    begin
-      provider = Setting.plugin_redmine_ai_integration['ai_provider']
-      # Custom Prompt verwenden, falls vorhanden, sonst Standard-Prompt
-      custom_prompt = params[:custom_prompt].presence
-      improved_text = call_ai_api(text, provider, custom_prompt)
-      
-      # Session-ID für Version-Speicherung
-      session_id = params[:session_id] || generate_session_id
-      field_type = params[:field_type] || detect_field_type
-      issue_id = params[:issue_id] || extract_issue_id
-      
-      # Originaltext SOFORT speichern
-      ensure_original_version_saved(text, session_id, field_type, issue_id)
-      
-      # Version speichern
-      version_id = save_text_version(text, improved_text, session_id, field_type, issue_id)
-      
-      render json: { 
+      render json: {
         improved_text: improved_text,
-        version_id: version_id
+        version_id: version_id,
+        session_id: session_id
       }
+      
     rescue => e
       Rails.logger.error "AI Rewrite Fehler: #{e.message}"
-      render json: { error: "Fehler beim Verbessern des Textes: #{e.message}" }, status: 500
+      render json: { error: "Fehler bei der KI-Verarbeitung: #{e.message}" }, status: 500
     end
   end
-
+  
+  def rewrite_stream
+    # Streaming-Implementierung für zukünftige Erweiterungen
+    render json: { error: 'Streaming noch nicht implementiert' }, status: 501
+  end
+  
   def save_version
     text = params[:text]
     version_id = params[:version_id]
     
     if version_id.present?
-      update_version(version_id, text)
-      render json: { success: true }
+      # Aktualisiere bestehende Version
+      version = AiTextVersion.find_by_version_id(version_id)
+      if version
+        version.update!(improved_text: text, last_changed_on: Time.current)
+        render json: { success: true }
+      else
+        render json: { error: 'Version nicht gefunden' }, status: 404
+      end
     else
-      render json: { error: 'Keine Version-ID angegeben' }, status: 400
+      # Neue Version erstellen
+      original_text = params[:original_text]
+      session_id = params[:session_id]
+      field_type = params[:field_type] || 'description'
+      issue_id = params[:issue_id]
+      
+      new_version_id = save_text_version(original_text, text, session_id, field_type, issue_id)
+      render json: { version_id: new_version_id }
     end
   end
-
+  
   def get_version
     version_id = params[:version_id]
-    direction = params[:direction] # 'prev', 'next', or 'original'
-    session_id = params[:session_id]
+    direction = params[:direction] || 'exact'
     
-    Rails.logger.info "Get Version - Version ID: #{version_id}, Direction: #{direction}, Session ID: #{session_id}"
+    result = get_text_version(version_id, direction)
     
-    # Session-ID aus Version-ID extrahieren falls nicht vorhanden
-    if session_id.blank? && version_id.present?
-      parts = version_id.split('_')
-      if parts.length >= 3
-        # Wenn es "_original" am Ende hat, entferne das
-        if parts.last == 'original'
-          session_id = parts[0..-2].join('_')
-        else
-          # Für normale Versionen: user_id_timestamp_random -> user_id_timestamp
-          session_id = parts[0..-2].join('_')
-        end
-      else
-        session_id = parts.first
-      end
-    end
-    
-    if direction == 'original'
-      version = get_original_version(session_id || version_id)
+    if result
+      render json: result
     else
-      version = get_text_version(version_id, direction)
-    end
-    
-    if version
-      Rails.logger.info "Get Version - Found version, Text length: #{version[:text].to_s.length}"
-      render json: { 
-        text: version[:text],
-        version_id: version[:id],
-        can_go_prev: version[:can_go_prev],
-        can_go_next: version[:can_go_next]
-      }
-    else
-      Rails.logger.error "Get Version - Version not found for version_id: #{version_id}, direction: #{direction}, session_id: #{session_id}"
       render json: { error: 'Version nicht gefunden' }, status: 404
     end
   end
-
-  def clear_versions
+  
+  def list_versions
     session_id = params[:session_id]
-    clear_text_versions(session_id)
-    render json: { success: true }
-  end
-
-  def check_versions
     issue_id = params[:issue_id]&.to_i
+    field_type = params[:field_type]
+
+    if session_id.blank? && issue_id.present?
+      latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
+      session_id = latest&.session_id
+    end
+
+    return render json: { versions: [] } if session_id.blank?
+
+    versions = list_versions_for_session(session_id, field_type)
+    render json: { session_id: session_id, versions: versions }
+  end
+  
+  def settings
+    settings = Setting.plugin_redmine_ai_integration
+    render json: { settings: settings }
+  end
+  
+  def check_versions
+    issue_id = params[:issue_id]
     field_type = params[:field_type] || 'description'
     
-    return render json: { has_versions: false } unless issue_id
+    return render json: { has_versions: false } if issue_id.blank?
     
-    # Suche nach der neuesten Version für dieses Issue und Field
-    latest_version = AiTextVersion.where(issue_id: issue_id, field_type: field_type)
-                                  .order(last_changed_on: :desc)
-                                  .first
+    latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
     
-    if latest_version
+    if latest
+      original = AiTextVersion.where(session_id: latest.session_id).order(:created_at).first
+      
       render json: {
         has_versions: true,
-        session_id: latest_version.session_id,
-        version_id: latest_version.version_id,
-        can_go_prev: latest_version.can_go_prev?,
-        can_go_next: latest_version.can_go_next?
+        session_id: latest.session_id,
+        version_id: latest.version_id,
+        can_go_prev: original && original != latest,
+        can_go_next: false
       }
     else
       render json: { has_versions: false }
     end
   end
-
-  def requests
-    # Hole alle eindeutigen Issue-IDs mit dem neuesten last_changed_on
-    @requests = AiTextVersion.where.not(issue_id: nil)
-                             .select('issue_id, MAX(last_changed_on) as max_last_changed_on')
-                             .group(:issue_id)
-                             .order('MAX(last_changed_on) DESC')
-                             .limit(100)
-                             .map do |r|
-                               issue = Issue.find_by(id: r.issue_id)
-                               next unless issue
-                               
-                               {
-                                 issue_id: r.issue_id,
-                                 last_changed_on: r.max_last_changed_on,
-                                 issue: issue
-                               }
-                             end
-                             .compact # Entferne nil-Einträge
+  
+  def clear_versions
+    session_id = params[:session_id]
     
-    render 'requests'
-  end
-
-  def test_connection
-    Rails.logger.info "=== AI Rewrite Test Connection Start ==="
-    Rails.logger.info "Provider: #{params[:provider]}"
-    Rails.logger.info "Settings: #{Setting.plugin_redmine_ai_integration.inspect}"
-    
-    begin
-      settings = Setting.plugin_redmine_ai_integration
-      provider = params[:provider] || settings['ai_provider']
-      
-      Rails.logger.info "Using provider: #{provider}"
-      
-      case provider
-      when 'openai'
-        Rails.logger.info "Testing OpenAI connection..."
-        result = test_openai_connection(settings)
-      when 'ollama'
-        Rails.logger.info "Testing Ollama connection..."
-        result = test_ollama_connection(settings)
-      when 'gemini'
-        Rails.logger.info "Testing Gemini connection..."
-        result = test_gemini_connection(settings)
-      when 'claude'
-        Rails.logger.info "Testing Claude connection..."
-        result = test_claude_connection(settings)
-      else
-        Rails.logger.error "Unbekannter Provider: #{provider}"
-        render json: { success: false, error: "Unbekannter Provider: #{provider}" }, status: 400
-        return
-      end
-      
-      Rails.logger.info "Test result: #{result.inspect}"
-      Rails.logger.info "=== AI Rewrite Test Connection End ==="
-      render json: result
-    rescue => e
-      Rails.logger.error "Test Connection Fehler: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      render json: { success: false, error: e.message, backtrace: e.backtrace.first(5) }, status: 500
+    if session_id.present?
+      AiTextVersion.where(session_id: session_id).destroy_all
+      render json: { success: true, message: 'Versionen gelöscht' }
+    else
+      render json: { error: 'Session-ID fehlt' }, status: 400
     end
   end
-
+  
+  def test_connection
+    provider = params[:provider] || Setting.plugin_redmine_ai_integration['ai_provider']
+    settings = Setting.plugin_redmine_ai_integration
+    
+    result = case provider
+    when 'openai'
+      test_openai_connection(settings)
+    when 'gemini'
+      test_gemini_connection(settings)
+    when 'claude'
+      test_claude_connection(settings)
+    when 'ollama'
+      test_ollama_connection(settings)
+    else
+      { success: false, error: 'Unbekannter Provider' }
+    end
+    
+    render json: result
+  end
+  
+  def requests
+    @versions = AiTextVersion.recent.limit(50)
+  end
+  
   private
-
+  
   def check_settings
     settings = Setting.plugin_redmine_ai_integration
     provider = settings['ai_provider']
@@ -256,8 +178,6 @@ class AiRewriteController < ApplicationController
         render json: { error: 'OpenAI API Key nicht konfiguriert' }, status: 400
         return false
       end
-    when 'ollama'
-      # Ollama benötigt keine API-Key, nur URL
     when 'gemini'
       if settings['gemini_api_key'].blank?
         render json: { error: 'Gemini API Key nicht konfiguriert' }, status: 400
@@ -268,63 +188,44 @@ class AiRewriteController < ApplicationController
         render json: { error: 'Claude API Key nicht konfiguriert' }, status: 400
         return false
       end
+    when 'ollama'
+      if settings['ollama_url'].blank?
+        render json: { error: 'Ollama URL nicht konfiguriert' }, status: 400
+        return false
+      end
+    else
+      render json: { error: 'KI-Provider nicht konfiguriert' }, status: 400
+      return false
     end
+    
     true
   end
-
-  def call_ai_api(text, provider, custom_prompt = nil)
-    settings = Setting.plugin_redmine_ai_integration
-    
-    # Embedded Prompt (immer verwendet, kann nicht überschrieben werden)
-    embedded_prompt = settings['embedded_system_prompt'].presence || ''
-    
-    # Optional Prompt (kann durch custom_prompt überschrieben werden)
-    optional_prompt = custom_prompt || settings['system_prompt'] || ''
-    
-    # Kombiniere beide Prompts: Embedded → Optional → Text
-    system_prompt = [embedded_prompt, optional_prompt].reject(&:blank?).join("\n\n")
-    
-    # Fallback falls beide leer sind
-    system_prompt = 'Verbessere den folgenden Text professionell.' if system_prompt.blank?
-
-    case provider
-    when 'openai'
-      call_openai(text, system_prompt, settings)
-    when 'ollama'
-      call_ollama(text, system_prompt, settings)
-    when 'gemini'
-      call_gemini(text, system_prompt, settings)
-    when 'claude'
-      call_claude(text, system_prompt, settings)
-    else
-      raise "Unbekannter AI-Provider: #{provider}"
-    end
-  end
-
+  
   def call_openai(text, system_prompt, settings)
     require 'net/http'
     require 'json'
-
+    
     uri = URI('https://api.openai.com/v1/chat/completions')
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
-
+    
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/json'
     request['Authorization'] = "Bearer #{settings['openai_api_key']}"
-
+    
     body = {
       model: settings['openai_model'] || 'gpt-3.5-turbo',
       messages: [
         { role: 'system', content: system_prompt },
         { role: 'user', content: text }
       ],
-      temperature: 0.7
+      temperature: 0.7,
+      max_tokens: 2000
     }
-
+    
     request.body = body.to_json
     response = http.request(request)
-
+    
     if response.code == '200'
       result = JSON.parse(response.body)
       result['choices'][0]['message']['content'].strip
@@ -332,161 +233,37 @@ class AiRewriteController < ApplicationController
       raise "OpenAI API Fehler: #{response.code} - #{response.body}"
     end
   end
-
-  def call_ollama_stream(text, system_prompt, settings, session_id, &block)
-    require 'net/http'
-    require 'json'
-
-    # Direkte Ollama API verwenden (Streaming)
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    Rails.logger.info "Ollama Stream Call - URL: #{url}, Model: #{settings['ollama_model']}"
-    
-    url = url.chomp('/')
-    use_ssl = url.start_with?('https://')
-    
-    uri = URI("#{url}/api/generate")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = use_ssl
-    http.open_timeout = 30
-    http.read_timeout = 120
-
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-
-    body = {
-      model: settings['ollama_model'] || 'llama2',
-      prompt: "#{system_prompt}\n\nText:\n#{text}",
-      stream: true
-    }
-
-    request.body = body.to_json
-    
-    begin
-      http.request(request) do |response|
-        if response.code == '200'
-          buffer = ''
-          response.read_body do |chunk|
-            buffer += chunk.to_s
-            # Verarbeite alle vollständigen Zeilen
-            lines = buffer.split("\n")
-            buffer = lines.pop || '' # Letzte unvollständige Zeile bleibt im Buffer
-            
-            lines.each do |line|
-              next if line.empty?
-              begin
-                parsed = JSON.parse(line)
-                content = parsed['response']
-                block.call(content) if content
-              rescue JSON::ParserError
-                # Ignoriere ungültige JSON-Zeilen
-              end
-            end
-          end
-          # Verarbeite verbleibenden Buffer
-          if buffer.present?
-            buffer.split("\n").each do |line|
-              next if line.empty?
-              begin
-                parsed = JSON.parse(line)
-                content = parsed['response']
-                block.call(content) if content
-              rescue JSON::ParserError
-              end
-            end
-          end
-        else
-          raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
-        end
-      end
-    rescue Timeout::Error => e
-      Rails.logger.error "Ollama Stream Call - Timeout: #{e.message}"
-      raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
-    rescue => e
-      Rails.logger.error "Ollama Stream Call - Error: #{e.class} - #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      raise "Ollama Verbindungsfehler: #{e.message}"
-    end
-  end
-
-  def call_ollama(text, system_prompt, settings)
-    require 'net/http'
-    require 'json'
-
-    # Direkte Ollama API verwenden
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    Rails.logger.info "Ollama Call - URL: #{url}, Model: #{settings['ollama_model']}"
-    
-    # URL normalisieren (ohne trailing slash)
-    url = url.chomp('/')
-    
-    # SSL automatisch erkennen
-    use_ssl = url.start_with?('https://')
-    
-    uri = URI("#{url}/api/generate")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = use_ssl
-    http.open_timeout = 30
-    http.read_timeout = 120
-
-    Rails.logger.info "Ollama Call - Full URI: #{uri}, Host: #{uri.host}, Port: #{uri.port}, SSL: #{use_ssl}"
-
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-
-    body = {
-      model: settings['ollama_model'] || 'llama2',
-      prompt: "#{system_prompt}\n\nText:\n#{text}",
-      stream: false
-    }
-
-    Rails.logger.info "Ollama Call - Sending request with model: #{body[:model]}"
-    request.body = body.to_json
-    
-    begin
-      response = http.request(request)
-      Rails.logger.info "Ollama Call - Response Code: #{response.code}"
-
-      if response.code == '200'
-        result = JSON.parse(response.body)
-        result['response'].strip
-      else
-        raise "Ollama API Fehler: #{response.code} - #{response.body[0..500]}"
-      end
-    rescue Timeout::Error => e
-      Rails.logger.error "Ollama Call - Timeout: #{e.message}"
-      raise "Verbindung zu Ollama fehlgeschlagen: Timeout nach 120 Sekunden"
-    rescue => e
-      Rails.logger.error "Ollama Call - Error: #{e.class} - #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      raise "Ollama Verbindungsfehler: #{e.message}"
-    end
-  end
-
+  
   def call_gemini(text, system_prompt, settings)
     require 'net/http'
     require 'json'
-
+    
     api_key = settings['gemini_api_key']
     model = settings['gemini_model'].presence || 'gemini-1.5-pro'
-    model = model.to_s.split('/').last # 'models/gemini-1.5-pro' -> 'gemini-1.5-pro'
+    model = model.to_s.split('/').last # Normalisiere Modellname
+    
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
-
+    
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/json'
-
+    
     body = {
       contents: [{
         parts: [{
-          text: "#{system_prompt}\n\nText:\n#{text}"
+          text: "#{system_prompt}\n\nText: #{text}"
         }]
-      }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000
+      }
     }
-
+    
     request.body = body.to_json
     response = http.request(request)
-
+    
     if response.code == '200'
       result = JSON.parse(response.body)
       result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip
@@ -494,33 +271,33 @@ class AiRewriteController < ApplicationController
       raise "Gemini API Fehler: #{response.code} - #{response.body}"
     end
   end
-
+  
   def call_claude(text, system_prompt, settings)
     require 'net/http'
     require 'json'
-
+    
     uri = URI('https://api.anthropic.com/v1/messages')
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
-
+    
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/json'
     request['x-api-key'] = settings['claude_api_key']
     request['anthropic-version'] = '2023-06-01'
-
+    
     body = {
       model: settings['claude_model'] || 'claude-3-sonnet-20240229',
-      max_tokens: 4096,
+      max_tokens: 2000,
       system: system_prompt,
       messages: [{
         role: 'user',
         content: text
       }]
     }
-
+    
     request.body = body.to_json
     response = http.request(request)
-
+    
     if response.code == '200'
       result = JSON.parse(response.body)
       result.dig('content', 0, 'text').strip
@@ -528,7 +305,170 @@ class AiRewriteController < ApplicationController
       raise "Claude API Fehler: #{response.code} - #{response.body}"
     end
   end
+  
+  def call_ollama(text, system_prompt, settings)
+    require 'net/http'
+    require 'json'
+    
+    url = settings['ollama_url'] || 'http://localhost:11434'
+    url = url.chomp('/')
+    use_ssl = url.start_with?('https://')
+    
+    uri = URI("#{url}/api/generate")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = use_ssl
+    http.open_timeout = 30
+    http.read_timeout = 120
+    
+    request = Net::HTTP::Post.new(uri)
+    request['Content-Type'] = 'application/json'
+    
+    body = {
+      model: settings['ollama_model'] || 'llama2',
+      prompt: "#{system_prompt}\n\nText: #{text}",
+      stream: false,
+      options: {
+        temperature: 0.7,
+        num_predict: 2000
+      }
+    }
+    
+    request.body = body.to_json
+    response = http.request(request)
+    
+    if response.code == '200'
+      result = JSON.parse(response.body)
+      result['response'].strip
+    else
+      raise "Ollama API Fehler: #{response.code} - #{response.body}"
+    end
+  end
+  
+  def test_openai_connection(settings)
+    require 'net/http'
+    require 'json'
 
+    Rails.logger.info "OpenAI Test - API Key vorhanden: #{!settings['openai_api_key'].blank?}"
+    
+    if settings['openai_api_key'].blank?
+      return { success: false, error: 'OpenAI API Key nicht konfiguriert' }
+    end
+
+    uri = URI('https://api.openai.com/v1/models')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Get.new(uri)
+    request['Authorization'] = "Bearer #{settings['openai_api_key']}"
+
+    response = http.request(request)
+
+    if response.code == '200'
+      models_data = JSON.parse(response.body)
+      models = models_data['data'] ? models_data['data'].map { |m| m['id'] } : []
+      Rails.logger.info "OpenAI Test - Gefundene Modelle: #{models.count}"
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "HTTP #{response.code}: #{response.body}" }
+    end
+  end
+  
+  def test_gemini_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    Rails.logger.info "Gemini Test - API Key vorhanden: #{!settings['gemini_api_key'].blank?}"
+    
+    if settings['gemini_api_key'].blank?
+      return { success: false, error: 'Gemini API Key nicht konfiguriert' }
+    end
+
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/models?key=#{settings['gemini_api_key']}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Get.new(uri)
+
+    response = http.request(request)
+
+    if response.code == '200'
+      models_data = JSON.parse(response.body)
+      models = if models_data['models']
+        models_data['models'].map { |m| m['name'].to_s.split('/').last }
+      else
+        []
+      end
+      Rails.logger.info "Gemini Test - Gefundene Modelle: #{models.count}"
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "HTTP #{response.code}: #{response.body}" }
+    end
+  end
+  
+  def test_claude_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    Rails.logger.info "Claude Test - API Key vorhanden: #{!settings['claude_api_key'].blank?}"
+    
+    if settings['claude_api_key'].blank?
+      return { success: false, error: 'Claude API Key nicht konfiguriert' }
+    end
+
+    uri = URI('https://api.anthropic.com/v1/models')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Get.new(uri)
+    request['x-api-key'] = settings['claude_api_key']
+    request['anthropic-version'] = '2023-06-01'
+
+    response = http.request(request)
+
+    if response.code == '200'
+      models_data = JSON.parse(response.body)
+      models = models_data['models'] ? models_data['models'].map { |m| m['id'] } : []
+      Rails.logger.info "Claude Test - Gefundene Modelle: #{models.count}"
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "HTTP #{response.code}: #{response.body}" }
+    end
+  end
+  
+  def test_ollama_connection(settings)
+    require 'net/http'
+    require 'json'
+
+    Rails.logger.info "Ollama Test - URL: #{settings['ollama_url']}"
+    
+    if settings['ollama_url'].blank?
+      return { success: false, error: 'Ollama URL nicht konfiguriert' }
+    end
+
+    url = settings['ollama_url']
+    url = url.chomp('/')
+    use_ssl = url.start_with?('https://')
+
+    uri = URI("#{url}/api/tags")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = use_ssl
+    http.open_timeout = 10
+    http.read_timeout = 10
+
+    request = Net::HTTP::Get.new(uri)
+
+    response = http.request(request)
+
+    if response.code == '200'
+      models_data = JSON.parse(response.body)
+      models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
+      Rails.logger.info "Ollama Test - Gefundene Modelle: #{models.count}"
+      { success: true, message: 'Verbindung erfolgreich', models: models }
+    else
+      { success: false, error: "HTTP #{response.code}: #{response.body}" }
+    end
+  end
+  
   def ensure_original_version_saved(original_text, session_id, field_type = nil, issue_id = nil)
     # Prüfen ob bereits eine Original-Version existiert
     existing = AiTextVersion.where(session_id: session_id).order(:created_at).first
@@ -552,7 +492,7 @@ class AiRewriteController < ApplicationController
     
     Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text, Version ID: #{version.version_id}"
   end
-
+  
   def save_text_version(original_text, improved_text, session_id = nil, field_type = nil, issue_id = nil)
     session_id ||= params[:session_id] || generate_session_id
     field_type ||= params[:field_type] || detect_field_type
@@ -581,18 +521,7 @@ class AiRewriteController < ApplicationController
     Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}, Issue ID: #{issue_id}"
     version_id
   end
-
-  def update_version(version_id, text)
-    version = AiTextVersion.find_by_version_id(version_id)
-    
-    if version
-      version.update!(
-        improved_text: text,
-        last_changed_on: Time.current
-      )
-    end
-  end
-
+  
   def get_text_version(version_id, direction)
     current_version = AiTextVersion.find_by_version_id(version_id)
     return nil unless current_version
@@ -617,46 +546,12 @@ class AiRewriteController < ApplicationController
       can_go_next: new_version.can_go_next?
     }
   end
-
-  def get_original_version(version_id_or_session_id)
-    # Wenn es eine Version-ID ist, extrahiere die Session-ID
-    # Format: user_id_timestamp_random oder user_id_timestamp_original
-    # Session-ID Format: user_id_timestamp
-    session_id = if version_id_or_session_id.to_s.include?('_')
-      parts = version_id_or_session_id.to_s.split('_')
-      if parts.length >= 3
-        # Wenn es "_original" am Ende hat, entferne das
-        if parts.last == 'original'
-          parts[0..-2].join('_')
-        else
-          # Für normale Versionen: user_id_timestamp_random -> user_id_timestamp
-          parts[0..-2].join('_')
-        end
-      else
-        version_id_or_session_id
-      end
-    else
-      version_id_or_session_id
-    end
-    
-    Rails.logger.info "Get Original Version - Input: #{version_id_or_session_id}, Extracted Session ID: #{session_id}"
-    
-    # Versuche zuerst mit der extrahierten Session-ID
-    original_version = AiTextVersion.get_original_for_session(session_id)
-    
-    # Falls nicht gefunden, versuche direkt mit der übergebenen ID
-    if original_version.nil? && version_id_or_session_id.to_s.end_with?('_original')
-      original_version = AiTextVersion.find_by_version_id(version_id_or_session_id)
-      if original_version
-        session_id = original_version.session_id
-      end
-    end
-    
+  
+  def get_original_version(session_id)
+    original_version = AiTextVersion.where(session_id: session_id, version_id: "#{session_id}_original").first
     return nil unless original_version
     
-    versions_count = AiTextVersion.for_session(session_id).count
-    
-    Rails.logger.info "Get Original Version - Found original version, ID: #{original_version.version_id}, Session ID: #{session_id}, Total versions: #{versions_count}"
+    versions_count = AiTextVersion.where(session_id: session_id).count
     
     {
       id: original_version.version_id,
@@ -664,21 +559,6 @@ class AiRewriteController < ApplicationController
       can_go_prev: false,
       can_go_next: versions_count > 1
     }
-  end
-
-  def clear_text_versions(session_id)
-    AiTextVersion.where(session_id: session_id).delete_all
-  end
-  
-  def extract_issue_id
-    # Versuche Issue-ID aus der URL zu extrahieren
-    if request.referer
-      match = request.referer.match(/\/issues\/(\d+)/)
-      return match[1].to_i if match
-    end
-    
-    # Versuche aus params
-    params[:issue_id]&.to_i
   end
   
   def detect_field_type
@@ -690,18 +570,26 @@ class AiRewriteController < ApplicationController
     
     params[:field_type] || 'description'
   end
-
+  
+  def extract_issue_id
+    # Extrahiere Issue-ID aus der URL
+    if request.referer && request.referer =~ /\/issues\/(\d+)/
+      return $1
+    end
+    params[:issue_id]
+  end
+  
   def generate_session_id
     user_id = User.current&.id || 'anonymous'
     "#{user_id}_#{Time.now.to_i}_#{SecureRandom.hex(8)}"
   end
-
+  
   def fetch_fixed_version_id(issue_id)
     return nil unless issue_id
     issue = Issue.find_by(id: issue_id)
     issue&.fixed_version_id
   end
-
+  
   def list_versions_for_session(session_id, field_type = nil)
     relation = AiTextVersion.where(session_id: session_id)
     relation = relation.where(field_type: field_type) if field_type.present?
@@ -712,202 +600,6 @@ class AiRewriteController < ApplicationController
         label: "v#{v.version_number}",
         created_at: v.created_at
       }
-    end
-  end
-
-  public
-
-  def list_versions
-    session_id = params[:session_id]
-    issue_id = params[:issue_id]&.to_i
-    field_type = params[:field_type]
-
-    if session_id.blank? && issue_id.present?
-      latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
-      session_id = latest&.session_id
-    end
-
-    return render json: { versions: [] } if session_id.blank?
-
-    versions = list_versions_for_session(session_id, field_type)
-    render json: { session_id: session_id, versions: versions }
-  end
-
-  def test_openai_connection(settings)
-    require 'net/http'
-    require 'json'
-
-    Rails.logger.info "OpenAI Test - API Key vorhanden: #{!settings['openai_api_key'].blank?}"
-    
-    if settings['openai_api_key'].blank?
-      return { success: false, error: 'OpenAI API Key nicht konfiguriert' }
-    end
-
-    uri = URI('https://api.openai.com/v1/models')
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{settings['openai_api_key']}"
-
-    Rails.logger.info "OpenAI Test - Sende Request an: #{uri}"
-    response = http.request(request)
-    Rails.logger.info "OpenAI Test - Response Code: #{response.code}"
-
-    if response.code == '200'
-      models = JSON.parse(response.body)['data'].map { |m| m['id'] }.select { |id| id.start_with?('gpt') }
-      Rails.logger.info "OpenAI Test - Gefundene Modelle: #{models.count}"
-      { success: true, message: 'Verbindung erfolgreich', models: models }
-    else
-      error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
-      Rails.logger.error "OpenAI Test - #{error_msg}"
-      { success: false, error: error_msg }
-    end
-  end
-
-  def test_ollama_connection(settings)
-    require 'net/http'
-    require 'json'
-
-    # Direkte Ollama API testen
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    Rails.logger.info "Ollama Test - URL: #{url}"
-    
-    # URL normalisieren (ohne trailing slash)
-    url = url.chomp('/')
-    
-    # SSL automatisch erkennen
-    use_ssl = url.start_with?('https://')
-    
-    begin
-      # Zuerst einen einfachen Health-Check versuchen
-      health_uri = URI(url)
-      health_http = Net::HTTP.new(health_uri.host, health_uri.port)
-      health_http.use_ssl = use_ssl
-      health_http.open_timeout = 10
-      health_http.read_timeout = 10
-      
-      Rails.logger.info "Ollama Test - Health Check an: #{health_uri}, SSL: #{use_ssl}"
-      health_request = Net::HTTP::Get.new(health_uri)
-      health_response = health_http.request(health_request)
-      Rails.logger.info "Ollama Test - Health Check Response: #{health_response.code}"
-      
-      # Dann die Models-API testen
-      uri = URI("#{url}/api/tags")
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = use_ssl
-      http.open_timeout = 15
-      http.read_timeout = 15
-
-      Rails.logger.info "Ollama Test - Sende Request an: #{uri}, Host: #{uri.host}, Port: #{uri.port}, SSL: #{use_ssl}"
-      request = Net::HTTP::Get.new(uri)
-      response = http.request(request)
-      Rails.logger.info "Ollama Test - Response Code: #{response.code}, Body length: #{response.body.length}"
-
-      if response.code == '200'
-        models_data = JSON.parse(response.body)
-        models = models_data['models'] ? models_data['models'].map { |m| m['name'] } : []
-        Rails.logger.info "Ollama Test - Gefundene Modelle: #{models.count} (#{models.join(', ')})"
-        { success: true, message: "Verbindung erfolgreich zu #{url}", models: models }
-      else
-        error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
-        Rails.logger.error "Ollama Test - #{error_msg}"
-        { success: false, error: error_msg }
-      end
-    rescue Timeout::Error => e
-      error_msg = "Verbindung zu #{url} fehlgeschlagen: Timeout (Server erreichbar, aber Antwort dauert zu lange)"
-      Rails.logger.error "Ollama Test - #{error_msg}"
-      Rails.logger.error "Ollama Test - Host: #{uri.host rescue 'unknown'}, Port: #{uri.port rescue 'unknown'}"
-      { success: false, error: error_msg }
-    rescue SocketError => e
-      error_msg = "Verbindung zu #{url} fehlgeschlagen: Netzwerkfehler - #{e.message}"
-      Rails.logger.error "Ollama Test - #{error_msg}"
-      { success: false, error: error_msg }
-    rescue => e
-      error_msg = "Verbindung fehlgeschlagen: #{e.class} - #{e.message}"
-      Rails.logger.error "Ollama Test - #{error_msg}"
-      Rails.logger.error e.backtrace.join("\n")
-      { success: false, error: error_msg }
-    end
-  end
-
-  def test_gemini_connection(settings)
-    require 'net/http'
-    require 'json'
-
-    Rails.logger.info "Gemini Test - API Key vorhanden: #{!settings['gemini_api_key'].blank?}"
-    
-    if settings['gemini_api_key'].blank?
-      return { success: false, error: 'Gemini API Key nicht konfiguriert' }
-    end
-
-    api_key = settings['gemini_api_key']
-    uri = URI("https://generativelanguage.googleapis.com/v1beta/models?key=#{api_key}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    Rails.logger.info "Gemini Test - Sende Request an: #{uri.host}#{uri.path}"
-    request = Net::HTTP::Get.new(uri)
-    response = http.request(request)
-    Rails.logger.info "Gemini Test - Response Code: #{response.code}"
-
-    if response.code == '200'
-      models_data = JSON.parse(response.body)
-      models = if models_data['models']
-        models_data['models'].map { |m| m['name'].to_s.split('/').last }
-      else
-        []
-      end
-      Rails.logger.info "Gemini Test - Gefundene Modelle: #{models.count}"
-      { success: true, message: 'Verbindung erfolgreich', models: models }
-    else
-      error_msg = "API Fehler: #{response.code} - #{response.body[0..200]}"
-      Rails.logger.error "Gemini Test - #{error_msg}"
-      { success: false, error: error_msg }
-    end
-  end
-
-  def test_claude_connection(settings)
-    require 'net/http'
-    require 'json'
-
-    Rails.logger.info "Claude Test - API Key vorhanden: #{!settings['claude_api_key'].blank?}"
-    
-    if settings['claude_api_key'].blank?
-      return { success: false, error: 'Claude API Key nicht konfiguriert' }
-    end
-
-    uri = URI('https://api.anthropic.com/v1/messages')
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    request['x-api-key'] = settings['claude_api_key']
-    request['anthropic-version'] = '2023-06-01'
-
-    body = {
-      model: settings['claude_model'] || 'claude-3-sonnet-20240229',
-      max_tokens: 10,
-      messages: [{
-        role: 'user',
-        content: 'test'
-      }]
-    }
-
-    Rails.logger.info "Claude Test - Sende Request an: #{uri}"
-    request.body = body.to_json
-    response = http.request(request)
-    Rails.logger.info "Claude Test - Response Code: #{response.code}"
-
-    if response.code == '200'
-      Rails.logger.info "Claude Test - Verbindung erfolgreich"
-      { success: true, message: 'Verbindung erfolgreich' }
-    else
-      error_body = response.body[0..500]
-      error_msg = "API Fehler: #{response.code} - #{error_body}"
-      Rails.logger.error "Claude Test - #{error_msg}"
-      { success: false, error: error_msg }
     end
   end
 end

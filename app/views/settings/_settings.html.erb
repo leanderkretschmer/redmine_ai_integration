@@ -1,38 +1,155 @@
-<div class="contextual">
-  <%= link_to l(:label_ai_integration_requests), '/ai_rewrite/requests', class: 'icon icon-list' %>
-</div>
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'ai_rewrite', plugin: 'redmine_ai_integration' %>
+  <style>
+    .provider-settings-section {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 15px 0;
+      background: #f9f9f9;
+    }
+    
+    .model-selection-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 5px;
+    }
+    
+    .load-models-btn {
+      background: #4a90e2;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .load-models-btn:hover {
+      background: #357abd;
+    }
+    
+    .load-models-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .advanced-settings {
+      margin-top: 20px;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+    }
+    
+    .advanced-settings-toggle {
+      background: none;
+      border: none;
+      color: #4a90e2;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      text-decoration: underline;
+    }
+    
+    .advanced-settings-content {
+      display: none;
+      margin-top: 15px;
+    }
+    
+    .advanced-settings-content.show {
+      display: block;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: #4a90e2;
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+    
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+  </style>
+<% end %>
 
 <%= form_tag({ controller: 'settings', action: 'plugin', id: 'redmine_ai_integration' }, method: :post) do %>
-  <div class="box tabular">
-    <h3>AI-Provider Einstellungen</h3>
-    
+  <div class="ai-integration-settings">
+    <h3>AI Provider</h3>
     <p>
-      <%= label_tag 'settings[ai_provider]', 'AI-Provider' %>
+      <%= label_tag 'settings[ai_provider]', 'KI-Provider' %>
       <%= select_tag 'settings[ai_provider]', 
           options_for_select([
-            ['OpenAI', 'openai'],
-            ['Ollama (selbstgehostet)', 'ollama'],
+            ['OpenAI (ChatGPT)', 'openai'],
             ['Google Gemini', 'gemini'],
-            ['Anthropic Claude', 'claude']
-          ], @settings['ai_provider']),
+            ['Anthropic Claude', 'claude'],
+            ['Ollama (Lokal)', 'ollama']
+          ], @settings['ai_provider'] || 'openai'),
           id: 'ai_provider_select' %>
+      <em class="info">Wählen Sie den KI-Provider für Textverbesserung und Chat</em>
     </p>
 
-    <div id="openai_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'openai' %>">
+    <div id="openai_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'openai' %>">
+      <h4>OpenAI (ChatGPT)</h4>
       <p>
         <%= label_tag 'settings[openai_api_key]', 'OpenAI API Key' %>
         <%= password_field_tag 'settings[openai_api_key]', @settings['openai_api_key'], size: 60 %>
         <em class="info">Ihr OpenAI API-Schlüssel</em>
       </p>
       <p>
-        <%= label_tag 'settings[openai_model]', 'OpenAI (ChatGPT) Modell' %>
-        <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40, id: 'openai_model_input' %>
-        <select id="openai_model_select" style="display:none; margin-left: 8px;"></select>
-        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
+        <%= label_tag 'settings[openai_model]', 'OpenAI Modell' %>
+        <div class="model-selection-group">
+          <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40, id: 'openai_model_input' %>
+          <button type="button" id="openai_load_models" class="load-models-btn">Modelle laden</button>
+          <select id="openai_model_select" style="display:none;"></select>
+        </div>
+        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
-    <div id="ollama_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'ollama' %>">
+    <div id="ollama_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'ollama' %>">
+      <h4>Ollama (Lokal)</h4>
       <p>
         <%= label_tag 'settings[ollama_url]', 'Ollama URL' %>
         <%= text_field_tag 'settings[ollama_url]', @settings['ollama_url'] || 'http://localhost:11434', size: 60 %>
@@ -40,13 +157,24 @@
       </p>
       <p>
         <%= label_tag 'settings[ollama_model]', 'Ollama Modell' %>
-        <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40, id: 'ollama_model_input' %>
-        <select id="ollama_model_select" style="display:none; margin-left: 8px;"></select>
-        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
+        <div class="model-selection-group">
+          <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40, id: 'ollama_model_input' %>
+          <button type="button" id="ollama_load_models" class="load-models-btn">Modelle laden</button>
+          <select id="ollama_model_select" style="display:none;"></select>
+        </div>
+        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
+      <div class="toggle-label">
+        <label class="toggle-switch">
+          <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
+          <span class="toggle-slider"></span>
+        </label>
+        <span>Streaming Response aktivieren</span>
+      </div>
     </div>
 
-    <div id="gemini_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'gemini' %>">
+    <div id="gemini_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'gemini' %>">
+      <h4>Google Gemini</h4>
       <p>
         <%= label_tag 'settings[gemini_api_key]', 'Gemini API Key' %>
         <%= password_field_tag 'settings[gemini_api_key]', @settings['gemini_api_key'], size: 60 %>
@@ -54,13 +182,17 @@
       </p>
       <p>
         <%= label_tag 'settings[gemini_model]', 'Gemini Modell' %>
-        <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40, id: 'gemini_model_input' %>
-        <select id="gemini_model_select" style="display:none; margin-left: 8px;"></select>
-        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
+        <div class="model-selection-group">
+          <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40, id: 'gemini_model_input' %>
+          <button type="button" id="gemini_load_models" class="load-models-btn">Modelle laden</button>
+          <select id="gemini_model_select" style="display:none;"></select>
+        </div>
+        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
-    <div id="claude_settings" class="provider_settings" style="<%= 'display:none;' unless @settings['ai_provider'] == 'claude' %>">
+    <div id="claude_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'claude' %>">
+      <h4>Anthropic Claude</h4>
       <p>
         <%= label_tag 'settings[claude_api_key]', 'Claude API Key' %>
         <%= password_field_tag 'settings[claude_api_key]', @settings['claude_api_key'], size: 60 %>
@@ -68,23 +200,46 @@
       </p>
       <p>
         <%= label_tag 'settings[claude_model]', 'Claude Modell' %>
-        <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40, id: 'claude_model_input' %>
-        <select id="claude_model_select" style="display:none; margin-left: 8px;"></select>
-        <em class="info">Modelle werden nach dem Verbindungstest zur Auswahl angezeigt</em>
+        <div class="model-selection-group">
+          <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40, id: 'claude_model_input' %>
+          <button type="button" id="claude_load_models" class="load-models-btn">Modelle laden</button>
+          <select id="claude_model_select" style="display:none;"></select>
+        </div>
+        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
-    <h3>System-Prompts</h3>
-    <p>
-      <%= label_tag 'settings[embedded_system_prompt]', l(:label_embedded_system_prompt) %>
-      <%= text_area_tag 'settings[embedded_system_prompt]', @settings['embedded_system_prompt'], rows: 3, cols: 80, style: 'width: 100%;' %>
-      <em class="info"><%= l(:info_embedded_system_prompt) %></em>
-    </p>
-    <p>
-      <%= label_tag 'settings[system_prompt]', l(:label_optional_system_prompt) %>
-      <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
-      <em class="info"><%= l(:info_optional_system_prompt) %></em>
-    </p>
+    <div class="advanced-settings">
+      <button type="button" class="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+        Erweiterte Einstellungen anzeigen
+      </button>
+      
+      <div class="advanced-settings-content" id="advanced_settings_content">
+        <h4>System-Prompts</h4>
+        <p>
+          <%= label_tag 'settings[embedded_system_prompt]', 'Eingebetteter System-Prompt' %>
+          <%= text_area_tag 'settings[embedded_system_prompt]', @settings['embedded_system_prompt'], rows: 3, cols: 80, style: 'width: 100%;' %>
+          <em class="info">Standard-Prompt für eingebettete KI-Funktionen</em>
+        </p>
+        <p>
+          <%= label_tag 'settings[system_prompt]', 'Optionaler System-Prompt' %>
+          <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
+          <em class="info">Benutzerdefinierter Prompt für Textverbesserung</em>
+        </p>
+        
+        <div class="toggle-label">
+          <label class="toggle-switch">
+            <%= check_box_tag 'settings[slim_response]', '1', @settings['slim_response'] == '1', id: 'slim_response_toggle' %>
+            <span class="toggle-slider"></span>
+          </label>
+          <span>Slim Response (nur das Wesentliche)</span>
+        </div>
+        
+        <p style="margin-top: 15px;">
+          <em class="info">Bei aktiviertem "Slim Response" wird ein optimierter Prompt verwendet, der nur das vom Benutzer Gewünschte zurückgibt.</em>
+        </p>
+      </div>
+    </div>
 
     <h3>Verbindung testen</h3>
     <p>
@@ -105,6 +260,7 @@
     const providerSelect = document.getElementById('ai_provider_select');
     const providerSettings = document.querySelectorAll('.provider_settings');
     
+    // Provider-Umschaltung
     providerSelect.addEventListener('change', function() {
       providerSettings.forEach(function(div) {
         div.style.display = 'none';
@@ -114,6 +270,22 @@
       const selectedDiv = document.getElementById(selectedProvider + '_settings');
       if (selectedDiv) {
         selectedDiv.style.display = 'block';
+      }
+    });
+
+    // Modelle laden Buttons
+    const loadModelButtons = {
+      openai: document.getElementById('openai_load_models'),
+      ollama: document.getElementById('ollama_load_models'),
+      gemini: document.getElementById('gemini_load_models'),
+      claude: document.getElementById('claude_load_models')
+    };
+
+    Object.entries(loadModelButtons).forEach(([provider, button]) => {
+      if (button) {
+        button.addEventListener('click', function() {
+          loadModelsForProvider(provider);
+        });
       }
     });
 
@@ -131,45 +303,16 @@
       statusSpan.style.color = '#666';
       resultDiv.style.display = 'none';
 
-      const formData = new FormData();
-      formData.append('provider', provider);
-
       fetch('/ai_rewrite/test_connection', {
         method: 'POST',
-        body: formData,
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
+        },
+        body: JSON.stringify({ provider: provider })
       })
-      .then(response => {
-        console.log('Test Connection Response Status:', response.status);
-        console.log('Test Connection Response Headers:', response.headers);
-        
-        if (!response.ok) {
-          return response.text().then(text => {
-            console.error('Test Connection Error Response:', text);
-            let errorMsg = 'HTTP ' + response.status + ': ';
-            if (response.status === 404) {
-              errorMsg += 'Route nicht gefunden. Bitte Redmine neu starten und sicherstellen, dass das Plugin aktiviert ist.';
-            } else {
-              errorMsg += text.substring(0, 500);
-            }
-            throw new Error(errorMsg);
-          });
-        }
-        const contentType = response.headers.get('content-type');
-        console.log('Test Connection Content-Type:', contentType);
-        if (contentType && contentType.includes('application/json')) {
-          return response.json();
-        } else {
-          return response.text().then(text => {
-            console.error('Test Connection Invalid Content-Type:', text);
-            throw new Error('Ungültige Antwort: Erwartet JSON, erhalten: ' + text.substring(0, 200));
-          });
-        }
-      })
+      .then(response => response.json())
       .then(data => {
-        console.log('Test Connection Success Data:', data);
         testBtn.disabled = false;
         resultDiv.style.display = 'block';
 
@@ -179,59 +322,111 @@
           messageDiv.innerHTML = '<strong style="color: green;">' + (data.message || 'Verbindung erfolgreich') + '</strong>';
           
           if (data.models && data.models.length > 0) {
-            modelsDiv.innerHTML = '';
-            const provider = providerSelect.value;
-            let selectEl = null;
-            let inputEl = null;
-            if (provider === 'openai') {
-              selectEl = document.getElementById('openai_model_select');
-              inputEl = document.getElementById('openai_model_input');
-            } else if (provider === 'gemini') {
-              selectEl = document.getElementById('gemini_model_select');
-              inputEl = document.getElementById('gemini_model_input');
-            } else if (provider === 'ollama') {
-              selectEl = document.getElementById('ollama_model_select');
-              inputEl = document.getElementById('ollama_model_input');
-            } else if (provider === 'claude') {
-              selectEl = document.getElementById('claude_model_select');
-              inputEl = document.getElementById('claude_model_input');
-            }
-            if (selectEl && inputEl) {
-              selectEl.innerHTML = '';
-              data.models.forEach(function(m) {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = m;
-                selectEl.appendChild(opt);
-              });
-              selectEl.style.display = 'inline-block';
-              selectEl.addEventListener('change', function() {
-                inputEl.value = selectEl.value;
-              });
-            }
+            modelsDiv.innerHTML = '<strong>Verfügbare Modelle:</strong><ul style="margin-top: 5px; margin-left: 20px;">' +
+              data.models.map(function(model) {
+                return '<li>' + model + '</li>';
+              }).join('') + '</ul>';
           } else {
             modelsDiv.innerHTML = '';
           }
         } else {
           statusSpan.textContent = 'Fehler';
           statusSpan.style.color = 'red';
-          let errorHtml = '<strong style="color: red;">Fehler:</strong> ' + (data.error || 'Unbekannter Fehler');
-          if (data.backtrace) {
-            errorHtml += '<br><small style="color: #666;">Stack Trace: ' + data.backtrace.join('<br>') + '</small>';
-          }
-          messageDiv.innerHTML = errorHtml;
+          messageDiv.innerHTML = '<strong style="color: red;">' + (data.message || 'Verbindung fehlgeschlagen') + '</strong>';
           modelsDiv.innerHTML = '';
         }
       })
       .catch(error => {
-        console.error('Test Connection Exception:', error);
         testBtn.disabled = false;
         statusSpan.textContent = 'Fehler';
         statusSpan.style.color = 'red';
-        resultDiv.style.display = 'block';
-        messageDiv.innerHTML = '<strong style="color: red;">Fehler:</strong> ' + error.message + '<br><small style="color: #666;">Bitte prüfen Sie die Browser-Konsole (F12) für weitere Details.</small>';
+        messageDiv.innerHTML = '<strong style="color: red;">Verbindungsfehler: ' + error.message + '</strong>';
         modelsDiv.innerHTML = '';
       });
     });
+
+    // Slim Response Toggle
+    const slimResponseToggle = document.getElementById('slim_response_toggle');
+    if (slimResponseToggle) {
+      slimResponseToggle.addEventListener('change', function() {
+        const systemPromptField = document.getElementById('settings_system_prompt');
+        if (this.checked) {
+          // Speichere aktuellen Prompt
+          if (!window.originalSystemPrompt) {
+            window.originalSystemPrompt = systemPromptField.value;
+          }
+          // Setze Slim Response Prompt
+          systemPromptField.value = 'Antworte nur mit dem verbesserten Text. Keine Erklärungen, keine zusätzlichen Informationen.';
+        } else {
+          // Stelle Original-Prompt wieder her
+          if (window.originalSystemPrompt) {
+            systemPromptField.value = window.originalSystemPrompt;
+          }
+        }
+      });
+    }
   });
+
+  function loadModelsForProvider(provider) {
+    const button = document.getElementById(provider + '_load_models');
+    const input = document.getElementById(provider + '_model_input');
+    const select = document.getElementById(provider + '_model_select');
+    
+    button.disabled = true;
+    button.textContent = 'Laden...';
+
+    fetch('/ai_rewrite/test_connection', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({ provider: provider })
+    })
+    .then(response => response.json())
+    .then(data => {
+      button.disabled = false;
+      button.textContent = 'Modelle laden';
+
+      if (data.success && data.models && data.models.length > 0) {
+        select.innerHTML = '';
+        data.models.forEach(function(model) {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = model;
+          select.appendChild(option);
+        });
+        
+        select.style.display = 'inline-block';
+        select.addEventListener('change', function() {
+          input.value = this.value;
+        });
+        
+        // Automatisch erstes Modell auswählen
+        if (data.models.length > 0) {
+          input.value = data.models[0];
+        }
+      } else {
+        alert('Keine Modelle gefunden oder Verbindungsfehler');
+      }
+    })
+    .catch(error => {
+      button.disabled = false;
+      button.textContent = 'Modelle laden';
+      alert('Fehler beim Laden der Modelle: ' + error.message);
+    });
+  }
+
+  function toggleAdvancedSettings() {
+    const content = document.getElementById('advanced_settings_content');
+    const button = document.querySelector('.advanced-settings-toggle');
+    
+    if (content.classList.contains('show')) {
+      content.classList.remove('show');
+      button.textContent = 'Erweiterte Einstellungen anzeigen';
+    } else {
+      content.classList.add('show');
+      button.textContent = 'Erweiterte Einstellungen ausblenden';
+    }
+  }
 </script>
