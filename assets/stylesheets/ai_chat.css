@@ -29,6 +29,24 @@
   letter-spacing: 0.5px;
 }
 
+.ai-chat-clear-btn {
+  background: transparent;
+  color: #999;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.ai-chat-clear-btn:hover {
+  background: #f5f5f5;
+  color: #c00;
+}
+
 .ai-chat-messages {
   max-height: 350px;
   overflow-y: auto;
@@ -99,31 +117,14 @@
 
 .ai-chat-button-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-top: 8px;
-}
-
-.ai-chat-clear-btn {
-  background: #f8f8f8;
-  color: #c00;
-  border: 1px solid #ccc;
-  font-size: 11px;
-  cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  font-weight: normal;
-}
-
-.ai-chat-clear-btn:hover {
-  background: #fff0f0;
-  border-color: #fcc;
-  color: #a00;
+  margin-top: 5px;
 }
 
 .ai-chat-send-btn {
-  padding: 6px 20px;
+  width: 100%;
+  padding: 8px 20px;
   background: #2996cc;
   color: white;
   border: 1px solid #2482b3;
