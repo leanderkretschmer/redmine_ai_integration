@@ -17,29 +17,27 @@
 /* Neue AI-Buttons */
 .ai-correction-button,
 .ai-complex-button {
-  padding: 6px 12px;
-  font-size: 13px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+  padding: 8px 16px; /* Größer */
+  font-size: 14px; /* Größer */
+  border: 1px solid #4a8bc7;
+  border-radius: 3px;
+  background: #5ca9dd;
+  color: white;
   cursor: pointer;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   white-space: nowrap;
+  font-family: Verdana, Arial, sans-serif;
+  font-weight: normal;
 }
 
-.ai-correction-button:hover {
-  background: linear-gradient(to bottom, #e8f4f8, #d1e7ed);
-  border-color: #4a90e2;
-  color: #2c5aa0;
-}
-
+.ai-correction-button:hover,
 .ai-complex-button:hover {
-  background: linear-gradient(to bottom, #f0e8ff, #e0d1ff);
-  border-color: #8b5cf6;
-  color: #6d28d9;
+  background: #4a8bc7;
+  border-color: #3a7bb7;
+  color: white;
 }
 
 .ai-correction-button:active,
@@ -56,19 +54,20 @@
 /* Navigation Buttons (bestehend) */
 .ai-prev-button,
 .ai-next-button {
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 6px 12px;
+  font-size: 14px;
   border: 1px solid #ccc;
-  border-radius: 4px;
-  background: linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+  border-radius: 3px;
+  background: #f2f2f2;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 32px;
+  min-width: 40px;
+  color: #333;
 }
 
 .ai-prev-button:hover,
 .ai-next-button:hover {
-  background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
+  background: #e8e8e8;
   border-color: #999;
 }
 
@@ -76,39 +75,42 @@
 .ai-next-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: #f9f9f9;
 }
 
 /* Versions-Dropdown */
 .ai-version-select {
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 6px 10px;
+  font-size: 14px;
   border: 1px solid #ccc;
   border-radius: 3px;
   background: white;
-  min-width: 80px;
+  min-width: 100px;
+  height: 35px;
 }
 
 .ai-version-select:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+  border-color: #5ca9dd;
+  box-shadow: 0 0 2px rgba(92, 169, 221, 0.4);
 }
 
 /* Komplexe Anfrage Input */
 .ai-complex-input {
   width: 100%;
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
   border: 1px solid #ccc;
   border-radius: 3px;
   background: white;
-  margin-top: 4px;
+  margin-top: 10px;
+  box-sizing: border-box;
 }
 
 .ai-complex-input:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+  border-color: #5ca9dd;
+  box-shadow: 0 0 2px rgba(92, 169, 221, 0.4);
 }
 
 /* Lade-Animation */

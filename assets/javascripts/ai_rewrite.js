@@ -22,45 +22,43 @@
 
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'ai-buttons-container';
-    buttonContainer.style.cssText = 'position: relative; display: block; width: 100%; margin-top: 5px;';
 
     const buttonGroup = document.createElement('div');
     buttonGroup.className = 'ai-button-group';
-    buttonGroup.style.cssText = 'display: flex; gap: 5px; align-items: center; margin-bottom: 5px; flex-wrap: wrap;';
 
     // Korrektur Button (neu)
     const correctionButton = document.createElement('button');
     correctionButton.type = 'button';
     correctionButton.className = 'ai-correction-button button';
-    correctionButton.innerHTML = '<span>🔧</span> <span>Korrektur</span>';
-    correctionButton.title = 'Automatische Korrektur ohne zusätzliche Eingabe';
+    correctionButton.innerHTML = 'Korrektur';
+    correctionButton.title = 'Automatische Korrektur oder Ausführung von Anweisungen im Text';
 
     // Komplexe Anfrage Button (neu)
     const complexButton = document.createElement('button');
     complexButton.type = 'button';
     complexButton.className = 'ai-complex-button button';
-    complexButton.innerHTML = '<span>✨</span> <span>Erweitern</span>';
-    complexButton.title = 'Komplexe Anfrage mit benutzerdefinierter Anweisung';
+    complexButton.innerHTML = 'Erweitern';
+    complexButton.title = 'Komplexe Anfrage mit zusätzlicher Anweisung';
 
     // Navigation Buttons (wie vorher)
     const prevButton = document.createElement('button');
     prevButton.type = 'button';
     prevButton.className = 'ai-prev-button button';
     prevButton.innerHTML = '&lt;';
-    prevButton.style.cssText = 'display: none;';
+    prevButton.style.display = 'none';
     prevButton.title = 'Vorherige Version';
 
     const nextButton = document.createElement('button');
     nextButton.type = 'button';
     nextButton.className = 'ai-next-button button';
     nextButton.innerHTML = '&gt;';
-    nextButton.style.cssText = 'display: none;';
+    nextButton.style.display = 'none';
     nextButton.title = 'Nächste Version';
 
     // Versionsauswahl (Dropdown)
     const versionSelect = document.createElement('select');
     versionSelect.className = 'ai-version-select';
-    versionSelect.style.cssText = 'display:none; min-width: 120px;';
+    versionSelect.style.display = 'none';
     versionSelect.title = 'Version auswählen';
 
     // Komplexe Anfrage Input (neu)
@@ -68,7 +66,7 @@
     complexInput.type = 'text';
     complexInput.className = 'ai-complex-input';
     complexInput.placeholder = 'z.B. "Fülle die Tabelle aus" oder "Erweitere die Beschreibung"...';
-    complexInput.style.cssText = 'display: none; width: 100%; margin-top: 5px; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px;';
+    complexInput.style.display = 'none';
 
     buttonGroup.appendChild(correctionButton);
     buttonGroup.appendChild(complexButton);
@@ -124,10 +122,10 @@
     const settings = window.redmineAISettings || {};
     const isSlimResponse = settings.slim_response === '1';
     
-    let systemPrompt = 'Korrigiere Rechtschreibung, Grammatik und Satzstellung. Verbessere die Struktur und mache den Text professioneller.';
+    let systemPrompt = 'Analysiere den bereitgestellten Text. Falls der Text am Anfang eine klare Anweisung enthält (z. B. "korrigiere...", "fasse zusammen...", "übersetze..."), führe diese Anweisung für den restlichen Teil des Textes aus. Falls keine klare Anweisung am Anfang steht, führe eine allgemeine Korrektur von Rechtschreibung, Grammatik und Stil durch. Behalte den ursprünglichen Sinn bei.';
     
     if (isSlimResponse) {
-      systemPrompt += ' Antworte nur mit dem korrigierten Text, ohne Erklärungen.';
+      systemPrompt += ' Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.';
     }
 
     handleAIRequest(textarea, correctionButton, prevButton, nextButton, originalText, systemPrompt, 'correction');
@@ -150,7 +148,7 @@
       return;
     }
 
-    const systemPrompt = `Führe folgende Anweisung aus: "${userInstruction}". Text: "${originalText}"`;
+    const systemPrompt = `Führe folgende Anweisung aus: "${userInstruction}". Falls der Text am Anfang eine weitere klare Anweisung enthält, kombiniere beide Anweisungen. Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze. Text: "${originalText}"`;
     
     handleAIRequest(textarea, complexButton, prevButton, nextButton, originalText, systemPrompt, 'complex');
     
@@ -271,19 +269,13 @@
   function setButtonLoading(button, loading) {
     if (loading) {
       button.disabled = true;
-      const originalText = button.querySelector('.ai-rewrite-text') || button.querySelector('span:last-child');
-      if (originalText) {
-        button.setAttribute('data-original-text', originalText.textContent);
-        originalText.textContent = 'Lädt...';
-      }
+      button.setAttribute('data-original-text', button.innerHTML);
+      button.textContent = 'Lädt...';
     } else {
       button.disabled = false;
       const originalText = button.getAttribute('data-original-text');
       if (originalText) {
-        const textElement = button.querySelector('.ai-rewrite-text') || button.querySelector('span:last-child');
-        if (textElement) {
-          textElement.textContent = originalText;
-        }
+        button.innerHTML = originalText;
         button.removeAttribute('data-original-text');
       }
     }
