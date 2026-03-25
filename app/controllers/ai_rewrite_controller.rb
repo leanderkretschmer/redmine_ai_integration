@@ -5,6 +5,9 @@ class AiRewriteController < ApplicationController
   def rewrite
     original_text = params[:original_text]
     system_prompt = params[:system_prompt]
+    
+    Rails.logger.info "AI Rewrite Request - Text length: #{original_text&.length}, Prompt length: #{system_prompt&.length}"
+    
     session_id = params[:session_id] || generate_session_id
     field_type = params[:field_type] || 'description'
     issue_id = params[:issue_id]
@@ -30,7 +33,14 @@ class AiRewriteController < ApplicationController
         raise "Unbekannter Provider: #{provider}"
       end
       
+      if improved_text.blank?
+        Rails.logger.error "AI Rewrite Error - Provider returned empty text"
+        raise "Die KI hat keine Antwort geliefert. Bitte versuchen Sie es erneut."
+      end
+      
       version_id = save_text_version(original_text, improved_text, session_id, field_type, issue_id)
+      
+      Rails.logger.info "AI Rewrite Success - Improved Text Length: #{improved_text&.length}"
       
       render json: {
         improved_text: improved_text,
@@ -344,9 +354,17 @@ class AiRewriteController < ApplicationController
     response = http.request(request)
     
     if response.code == '200'
-      result = JSON.parse(response.body)
-      result['response'].strip
+      begin
+        result = JSON.parse(response.body)
+        improved = result['response'].to_s.strip
+        Rails.logger.info "Ollama Success - Response length: #{improved.length}, Raw: #{response.body[0..100]}"
+        improved
+      rescue JSON::ParserError => e
+        Rails.logger.error "Ollama JSON Error - Body: #{response.body}"
+        raise "Ollama lieferte ungültiges JSON: #{e.message}"
+      end
     else
+      Rails.logger.error "Ollama Error - Code: #{response.code}, Body: #{response.body}"
       raise "Ollama API Fehler: #{response.code} - #{response.body}"
     end
   end

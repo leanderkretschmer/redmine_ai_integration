@@ -162,7 +162,7 @@
       return;
     }
 
-    const systemPrompt = `Führe folgende Anweisung aus: "${userInstruction}". Falls der Text am Anfang eine weitere klare Anweisung enthält, kombiniere beide Anweisungen. Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze. Text: "${originalText}"`;
+    const systemPrompt = `Führe folgende Anweisung aus: "${userInstruction}". Falls der Text am Anfang eine weitere klare Anweisung enthält, kombiniere beide Anweisungen. Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.`;
     
     handleAIRequest(textarea, complexButton, prevButton, nextButton, originalText, systemPrompt, 'complex');
     
@@ -229,13 +229,39 @@
       setButtonLoading(button, false);
       button.disabled = false;
 
+      console.log('AI Rewrite Response:', data);
+
       if (data.error) {
         alert('Fehler: ' + data.error);
         return;
       }
 
+      console.log('AI Rewrite Success - Improved text length:', data.improved_text ? data.improved_text.length : 0);
+
       // Verbesserten Text einfügen
-      textarea.value = data.improved_text;
+      if (data.improved_text && data.improved_text.trim().length > 0) {
+        if (!document.contains(textarea)) {
+          console.warn('AI Rewrite - Textarea reference is no longer in DOM, trying to find by ID');
+          const newTextarea = document.getElementById(textarea.id);
+          if (newTextarea) {
+            textarea = newTextarea;
+          }
+        }
+        
+        textarea.value = data.improved_text;
+        
+        // Trigger event for Redmine
+        if (window.jQuery) {
+          window.jQuery(textarea).trigger('change').trigger('input');
+        } else {
+          const event = new Event('input', { bubbles: true });
+          textarea.dispatchEvent(event);
+        }
+      } else {
+        console.warn('AI Rewrite returned empty text');
+        alert('Die KI hat eine leere Antwort geliefert. Bitte prüfen Sie Ihre Einstellungen oder versuchen Sie es erneut.');
+      }
+      
       sessionData.versionId = data.version_id;
       
       // Buttons aktualisieren
@@ -585,6 +611,14 @@
         mutations.forEach(function(mutation) {
           mutation.addedNodes.forEach(function(node) {
             if (node.nodeType === 1) { // Element-Knoten
+              // Prüfe das hinzugefügte Element selbst
+              if (node.tagName === 'TEXTAREA') {
+                if (node.id && (node.id.includes('notes') || node.id.includes('description'))) {
+                  createAIButtons(node);
+                }
+              }
+              
+              // Prüfe Kinder des hinzugefügten Elements
               const textareas = node.querySelectorAll ? node.querySelectorAll('textarea') : [];
               textareas.forEach(function(textarea) {
                 if (textarea.id && (textarea.id.includes('notes') || textarea.id.includes('description'))) {
