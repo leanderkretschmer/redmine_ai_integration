@@ -1,32 +1,33 @@
-/* AI Chat Sidebar Styles - Redmine Design */
+/* AI Chat Sidebar Styles - Circle Theme Style */
 
 .ai-chat-container {
   background: #fff;
   border: 1px solid #e3e3e3;
-  border-radius: 4px;
+  border-radius: 8px; /* More rounded like circle theme */
   padding: 20px;
   margin-top: 20px;
   margin-bottom: 20px;
   font-family: Verdana, Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .ai-chat-container h3 {
   margin: 0 0 20px 0;
-  color: #333;
+  color: #5ca9dd; /* Circle theme blue */
   font-size: 18px;
   font-weight: bold;
   padding-bottom: 12px;
-  border-bottom: 2px solid #e3e3e3;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .ai-chat-messages {
-  max-height: 500px; /* Noch größer für bessere Lesbarkeit */
+  max-height: 500px;
   overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fcfcfc;
   padding: 20px;
   margin-bottom: 20px;
 }
@@ -35,29 +36,30 @@
   color: #666;
   font-style: italic;
   text-align: center;
-  padding: 25px 15px; /* Mehr Padding */
+  padding: 25px 15px;
   font-size: 13px;
 }
 
 .ai-chat-message {
-  margin-bottom: 18px; /* Mehr Abstand */
-  padding: 12px 15px; /* Mehr Padding */
-  border-radius: 4px;
+  margin-bottom: 18px;
+  padding: 12px 18px;
+  border-radius: 12px; /* Very rounded bubbles */
   position: relative;
   border: 1px solid transparent;
+  max-width: 90%;
 }
 
 .ai-chat-user {
-  background: #e8f4f8;
-  border-color: #c6d9e8;
-  margin-left: 25px;
+  background: #eef7fd;
+  border-color: #d0e8f8;
+  margin-left: auto;
   border-bottom-right-radius: 2px;
 }
 
 .ai-chat-ai {
   background: #f5f5f5;
-  border-color: #ddd;
-  margin-right: 25px;
+  border-color: #e8e8e8;
+  margin-right: auto;
   border-bottom-left-radius: 2px;
 }
 
@@ -65,12 +67,13 @@
   background: #ffe6e6;
   color: #c00;
   border: 1px solid #fcc;
+  margin: 10px 0;
 }
 
 .ai-chat-content {
   line-height: 1.6;
   word-wrap: break-word;
-  font-size: 14px; /* Etwas größer für bessere Lesbarkeit */
+  font-size: 14px;
 }
 
 .ai-chat-content p {
@@ -97,13 +100,13 @@
 #ai-chat-input {
   flex: 1;
   resize: vertical;
-  min-height: 70px; /* Noch größer */
+  min-height: 70px;
   max-height: 180px;
-  padding: 12px 15px; /* Mehr Padding */
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   font-family: Verdana, Arial, sans-serif;
-  font-size: 14px; /* Größere Schrift */
+  font-size: 14px;
   line-height: 1.5;
   background: #fff;
 }
@@ -111,47 +114,49 @@
 #ai-chat-input:focus {
   outline: none;
   border-color: #5ca9dd;
-  box-shadow: 0 0 2px rgba(92, 169, 221, 0.4);
+  box-shadow: 0 0 0 2px rgba(92, 169, 221, 0.1);
 }
 
 .ai-chat-send-btn {
-  padding: 8px 18px; /* Größer */
+  padding: 10px 20px;
   background: #5ca9dd;
   color: white;
-  border: 1px solid #4a8bc7;
-  border-radius: 3px;
+  border: none;
+  border-radius: 20px; /* Fully rounded pill shape */
   cursor: pointer;
-  font-size: 13px;
-  font-weight: normal;
-  transition: background-color 0.2s;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
   white-space: nowrap;
   height: fit-content;
   font-family: Verdana, Arial, sans-serif;
 }
 
 .ai-chat-send-btn:hover {
-  background: #4a8bc7;
-  border-color: #3a7bb7;
+  background: #4a9bc7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(92, 169, 221, 0.3);
 }
 
 .ai-chat-send-btn:disabled,
 .ai-chat-send-btn.ai-chat-disabled {
   background: #ccc;
-  border-color: #bbb;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .ai-chat-loading {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #666;
   font-size: 13px;
-  margin-top: 10px;
-  padding: 10px;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 3px;
+  margin-top: 15px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #eee;
 }
 
 .ai-chat-spinner {
@@ -168,7 +173,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Journal-Link Styling - Redmine Style */
+/* Journal-Link Styling */
 .ai-journal-link {
   color: #169;
   text-decoration: none;
@@ -180,110 +185,30 @@
 .ai-journal-link:hover {
   color: #137;
   border-bottom-style: solid;
-  text-decoration: none;
 }
 
-/* Scrollbar Styling */
-.ai-chat-messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-.ai-chat-messages::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.ai-chat-messages::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-.ai-chat-messages::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .ai-chat-container {
-    margin: 15px 0;
-    padding: 15px;
-  }
-  
-  .ai-chat-input-container {
-    flex-direction: column;
-  }
-  
-  .ai-chat-send-btn {
-    width: 100%;
-    margin-top: 10px;
-  }
-  
-  .ai-chat-messages {
-    max-height: 350px;
-  }
-}
-
-/* Integration mit Redmine Sidebar */
-#sidebar .ai-chat-container {
-  margin-top: 20px;
-  margin-bottom: 20px;
-}
-
-#sidebar .ai-chat-messages {
-  max-height: 400px;
-}
-
-/* Dark Mode Support */
+/* Remove Dark Mode overrides that make it "black" */
 @media (prefers-color-scheme: dark) {
   .ai-chat-container {
-    background: #2a2a2a;
-    border-color: #444;
-    color: #e0e0e0;
+    background: #fff;
+    color: #333;
+    border-color: #e3e3e3;
   }
-  
-  .ai-chat-container h3 {
-    color: #e0e0e0;
-    border-bottom-color: #444;
-  }
-  
   .ai-chat-messages {
-    background: #1e1e1e;
-    border-color: #444;
+    background: #fcfcfc;
+    border-color: #eee;
   }
-  
   .ai-chat-ai {
-    background: #333;
-    border-color: #555;
+    background: #f5f5f5;
+    border-color: #e8e8e8;
   }
-  
   .ai-chat-user {
-    background: #1a365d;
-    border-color: #2a4a5a;
+    background: #eef7fd;
+    border-color: #d0e8f8;
   }
-  
   #ai-chat-input {
-    background: #2a2a2a;
-    border-color: #555;
-    color: #e0e0e0;
-  }
-  
-  .ai-chat-loading {
-    background: #333;
-    color: #ccc;
-    border-color: #555;
-  }
-  
-  .ai-chat-spinner {
-    border-top-color: #5ca9dd;
-  }
-  
-  .ai-journal-link {
-    color: #5ca9dd;
-    border-bottom-color: #5ca9dd;
-  }
-  
-  .ai-journal-link:hover {
-    color: #4a8bc7;
-    border-bottom-color: #4a8bc7;
+    background: #fff;
+    color: #333;
+    border-color: #ddd;
   }
 }

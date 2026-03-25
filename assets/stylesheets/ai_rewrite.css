@@ -1,64 +1,69 @@
-/* AI Rewrite Plugin Styles */
+/* AI Rewrite Plugin Styles - Circle Theme Style */
 
 /* Container und Button-Gruppen */
 .ai-buttons-container {
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .ai-button-group {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
-/* Neue AI-Buttons */
+/* Neue AI-Buttons - Circle Theme Style */
 .ai-correction-button,
 .ai-complex-button {
-  padding: 8px 16px; /* Größer */
-  font-size: 14px; /* Größer */
-  border: 1px solid #4a8bc7;
-  border-radius: 3px;
+  padding: 8px 18px;
+  font-size: 14px;
+  border: none;
+  border-radius: 20px; /* Fully rounded pill shape */
   background: #5ca9dd;
   color: white;
   cursor: pointer;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
-  font-weight: normal;
+  font-weight: bold;
+  box-shadow: 0 1px 3px rgba(92, 169, 221, 0.2);
 }
 
 .ai-correction-button:hover,
 .ai-complex-button:hover {
-  background: #4a8bc7;
-  border-color: #3a7bb7;
+  background: #4a9bc7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(92, 169, 221, 0.3);
   color: white;
 }
 
 .ai-correction-button:active,
 .ai-complex-button:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
 .ai-correction-button:disabled,
 .ai-complex-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: #ccc;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Navigation Buttons (bestehend) */
 .ai-prev-button,
 .ai-next-button {
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  background: #f2f2f2;
+  border: 1px solid #ddd;
+  border-radius: 20px; /* Rounded pill shape */
+  background: #f9f9f9;
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 40px;
@@ -67,107 +72,71 @@
 
 .ai-prev-button:hover,
 .ai-next-button:hover {
-  background: #e8e8e8;
-  border-color: #999;
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
 .ai-prev-button:disabled,
 .ai-next-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f9f9f9;
+  background: #fdfdfd;
+  color: #bbb;
 }
 
 /* Versions-Dropdown */
 .ai-version-select {
-  padding: 6px 10px;
+  padding: 6px 12px;
   font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  border: 1px solid #ddd;
+  border-radius: 20px; /* Rounded */
   background: white;
   min-width: 100px;
   height: 35px;
+  cursor: pointer;
 }
 
 .ai-version-select:focus {
   outline: none;
   border-color: #5ca9dd;
-  box-shadow: 0 0 2px rgba(92, 169, 221, 0.4);
 }
 
 /* Komplexe Anfrage Input */
 .ai-complex-input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 15px;
   font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  border: 1px solid #ddd;
+  border-radius: 20px; /* Rounded like circle theme */
   background: white;
   margin-top: 10px;
   box-sizing: border-box;
+  transition: border-color 0.2s;
 }
 
 .ai-complex-input:focus {
   outline: none;
   border-color: #5ca9dd;
-  box-shadow: 0 0 2px rgba(92, 169, 221, 0.4);
+  box-shadow: 0 0 0 2px rgba(92, 169, 221, 0.1);
 }
 
 /* Lade-Animation */
-.ai-loading .ai-correction-button span:last-child,
-.ai-loading .ai-complex-button span:last-child {
-  display: inline-block;
-  animation: pulse 1.5s ease-in-out infinite;
+.ai-loading .ai-correction-button,
+.ai-loading .ai-complex-button {
+  position: relative;
+  pointer-events: none;
 }
 
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .ai-button-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .ai-correction-button,
-  .ai-complex-button,
-  .ai-prev-button,
-  .ai-next-button,
-  .ai-version-select {
-    width: 100%;
-    margin-bottom: 4px;
-  }
-}
-
-/* Dark Mode Support */
+/* Remove Dark Mode overrides that make it "black" */
 @media (prefers-color-scheme: dark) {
   .ai-correction-button,
-  .ai-complex-button,
-  .ai-prev-button,
-  .ai-next-button {
-    background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
-    border-color: #555;
-    color: #e0e0e0;
+  .ai-complex-button {
+    background: #5ca9dd;
+    color: white;
   }
-  
-  .ai-correction-button:hover {
-    background: linear-gradient(to bottom, #2a4a5a, #1a3a4a);
-    border-color: #4a90e2;
-  }
-  
-  .ai-complex-button:hover {
-    background: linear-gradient(to bottom, #4a3a6a, #3a2a5a);
-    border-color: #8b5cf6;
-  }
-  
-  .ai-version-select,
-  .ai-complex-input {
-    background: #2a2a2a;
-    border-color: #555;
-    color: #e0e0e0;
+  .ai-complex-input, .ai-version-select {
+    background: #fff;
+    color: #333;
+    border-color: #ddd;
   }
 }

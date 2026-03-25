@@ -31,7 +31,7 @@
       chatContainer.id = 'ai-chat-sidebar';
       chatContainer.className = 'ai-chat-container';
       chatContainer.innerHTML = `
-        <h3>🤖 KI-Assistent</h3>
+        <h3>KI-Assistent</h3>
         <div class="ai-chat-messages" id="ai-chat-messages">
           <div class="ai-chat-welcome">
             <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
