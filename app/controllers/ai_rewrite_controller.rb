@@ -45,60 +45,8 @@ class AiRewriteController < ApplicationController
   end
   
   def rewrite_stream
-    original_text = params[:original_text]
-    system_prompt = params[:system_prompt]
-    provider = params[:provider] || Setting.plugin_redmine_ai_integration['ai_provider']
-    
-    return render json: { error: 'Original-Text fehlt' }, status: 400 if original_text.blank?
-    
-    settings = Setting.plugin_redmine_ai_integration
-    
-    if provider == 'ollama'
-      url = settings['ollama_url'] || 'http://localhost:11434'
-      url = url.chomp('/')
-      model = settings['ollama_model'] || 'llama2'
-      
-      uri = URI("#{url}/api/generate")
-      
-      response.headers['Content-Type'] = 'text/event-stream'
-      response.headers['Last-Modified'] = Time.now.httpdate
-      
-      begin
-        Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
-          request = Net::HTTP::Post.new(uri)
-          request['Content-Type'] = 'application/json'
-          request.body = {
-            model: model,
-            prompt: "#{system_prompt}\n\nText: #{original_text}",
-            stream: true,
-            options: {
-              temperature: 0.7,
-              num_predict: 2000
-            }
-          }.to_json
-          
-          http.request(request) do |res|
-            res.read_body do |chunk|
-              # Ollama sendet JSON-Chunks
-              begin
-                json_chunk = JSON.parse(chunk)
-                response.stream.write "data: #{json_chunk['response']}\n\n"
-                break if json_chunk['done']
-              rescue JSON::ParserError
-                # Falls ein Chunk kein vollständiges JSON ist
-                next
-              end
-            end
-          end
-        end
-      rescue => e
-        response.stream.write "data: [ERROR: #{e.message}]\n\n"
-      ensure
-        response.stream.close
-      end
-    else
-      render json: { error: 'Streaming nur für Ollama implementiert' }, status: 501
-    end
+    # Streaming-Implementierung für zukünftige Erweiterungen
+    render json: { error: 'Streaming noch nicht implementiert' }, status: 501
   end
   
   def save_version
