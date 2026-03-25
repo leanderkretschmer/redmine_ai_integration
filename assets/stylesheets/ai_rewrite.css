@@ -19,7 +19,7 @@
 .ai-complex-button {
   padding: 6px 14px;
   font-size: 13px;
-  border: none;
+  border: 1px solid #2482b3;
   border-radius: 4px; /* Circle Theme Style */
   background: #2996cc; /* Circle Theme Blue */
   color: white;
@@ -36,6 +36,7 @@
 .ai-correction-button:hover,
 .ai-complex-button:hover {
   background: #1e7099;
+  border-color: #1a6285;
   color: white;
 }
 

@@ -120,7 +120,7 @@
     }
     
     .ai-checkbox-row {
-       margin: 15px 0 15px 0;
+       margin: 15px 0 5px 0;
        padding-left: 230px; /* 180px (standard label width) + 50px */
        display: flex;
        align-items: center;
@@ -134,12 +134,18 @@
       height: 16px;
     }
     
-    .ai-checkbox-row label {
+    .ai-checkbox-row label, .ai-checkbox-row span {
       float: none !important;
       width: auto !important;
       margin: 0 !important;
       font-weight: normal;
       cursor: pointer;
+    }
+
+    .ai-checkbox-info {
+      padding-left: 230px;
+      margin-top: 0;
+      margin-bottom: 15px;
     }
   </style>
 <% end %>
@@ -260,7 +266,7 @@
           <span onclick="document.getElementById('slim_response_toggle').click()" style="cursor:pointer;">Slim Response (nur das Wesentliche)</span>
         </div>
         
-        <p style="padding-left: 230px; margin-top: 0;">
+        <p class="ai-checkbox-info">
           <em class="info">Bei aktiviertem "Slim Response" wird ein optimierter Prompt verwendet, der nur das vom Benutzer Gewünschte zurückgibt.</em>
         </p>
       </div>

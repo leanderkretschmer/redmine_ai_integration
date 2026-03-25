@@ -101,41 +101,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 5px;
+  margin-top: 8px;
 }
 
-.ai-chat-clear-link {
+.ai-chat-clear-btn {
+  background: #f8f8f8;
   color: #c00;
+  border: 1px solid #ccc;
   font-size: 11px;
-  text-decoration: none;
   cursor: pointer;
-  padding: 4px 8px;
-  background: #fdfdfd;
-  border: 1px solid #eee;
-  border-radius: 3px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-weight: normal;
 }
 
-.ai-chat-clear-link:hover {
-  text-decoration: underline;
-  color: #a00;
-  background: #fff5f5;
+.ai-chat-clear-btn:hover {
+  background: #fff0f0;
   border-color: #fcc;
+  color: #a00;
 }
 
 .ai-chat-send-btn {
   padding: 6px 20px;
   background: #2996cc;
   color: white;
-  border: none;
+  border: 1px solid #2482b3;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   font-weight: bold;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .ai-chat-send-btn:hover {
   background: #1e7099;
+  border-color: #1a6285;
 }
 
 .ai-chat-loading {

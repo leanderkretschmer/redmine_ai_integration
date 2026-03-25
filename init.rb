@@ -18,7 +18,7 @@ Redmine::Plugin.register :redmine_ai_integration do
     'claude_api_key' => '',
     'claude_model' => 'claude-3-sonnet-20240229',
     'slim_response' => '0',
-    'embedded_system_prompt' => 'Analysiere den bereitgestellten Text. Falls der Text am Anfang eine klare Anweisung enthält, führe diese aus. Falls nicht, korrigiere den Text professionell.',
-    'system_prompt' => 'Analysiere den bereitgestellten Text. Falls der Text am Anfang eine klare Anweisung enthält (z. B. "korrigiere...", "fasse zusammen...", "übersetze..."), führe diese Anweisung für den restlichen Teil des Textes aus. Falls keine klare Anweisung am Anfang steht, führe eine allgemeine Korrektur von Rechtschreibung, Grammatik und Stil durch. Behalte den ursprünglichen Sinn bei. Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.'
+    'embedded_system_prompt' => 'Du bist ein professioneller Textkorrektor. Korrigiere Rechtschreibung, Grammatik und Satzstellung. Verbessere die Struktur und mache den Text professioneller.',
+    'system_prompt' => 'Analysiere den bereitgestellten Text. Falls der Text am Anfang eine klare Anweisung enthält, führe diese Anweisung für den restlichen Teil des Textes aus. Falls keine Anweisung vorhanden ist, korrigiere den Text professionell. Antworte immer ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen, Begrüßungen oder einleitende Sätze.'
   }, partial: 'settings/settings'
 end

@@ -11,8 +11,8 @@
   <div class="ai-chat-input-container">
     <textarea id="ai-chat-input" placeholder="Frage stellen..." rows="2"></textarea>
     <div class="ai-chat-button-row">
-      <a href="javascript:void(0)" onclick="clearAIChat()" class="ai-chat-clear-link">Verlauf löschen</a>
-      <button id="ai-chat-send" class="button ai-chat-send-btn" onclick="sendAIChatMessage()">
+      <button type="button" onclick="clearAIChat()" class="ai-chat-clear-btn" title="Chat-Verlauf löschen">Verlauf löschen</button>
+      <button type="button" id="ai-chat-send" class="button ai-chat-send-btn" onclick="sendAIChatMessage()">
         <span>Fragen</span>
       </button>
     </div>
@@ -29,17 +29,20 @@
 var currentIssueId = null;
 var isChatLoading = false;
 
+function getIssueIdFromUrl() {
+  const match = window.location.pathname.match(/\/issues\/(\d+)/);
+  return match ? match[1] : null;
+}
+
 function initAIChat() {
   console.log('AI Chat Initialisierung gestartet');
   
-  // Extrahiere Issue-ID aus URL
-  const match = window.location.pathname.match(/\/issues\/(\d+)/);
-  if (!match) {
+  currentIssueId = getIssueIdFromUrl();
+  if (!currentIssueId) {
     console.log('Keine Issue-Seite gefunden');
     return;
   }
   
-  currentIssueId = match[1];
   console.log('Issue ID gefunden:', currentIssueId);
   
   // Event-Listener für Enter-Taste im Textfeld
@@ -58,7 +61,8 @@ function initAIChat() {
 }
 
 function sendAIChatMessage() {
-  if (!currentIssueId || isChatLoading) return;
+  const issueId = currentIssueId || getIssueIdFromUrl();
+  if (!issueId || isChatLoading) return;
   
   const input = document.getElementById('ai-chat-input');
   const question = input.value.trim();
@@ -74,7 +78,7 @@ function sendAIChatMessage() {
   
   // Sende Anfrage
   const formData = new FormData();
-  formData.append('issue_id', currentIssueId);
+  formData.append('issue_id', issueId);
   formData.append('question', question);
   
   fetch('/ai_chat/ask', {
@@ -101,7 +105,13 @@ function sendAIChatMessage() {
 }
 
 function clearAIChat() {
-  if (!currentIssueId || !confirm('Möchten Sie den Chat-Verlauf wirklich löschen?')) return;
+  const issueId = currentIssueId || getIssueIdFromUrl();
+  if (!issueId) {
+    console.error('Kein Ticket gefunden.');
+    return;
+  }
+  
+  if (!confirm('Möchten Sie den Chat-Verlauf wirklich löschen?')) return;
   
   fetch('/ai_chat/clear', {
     method: 'POST',
@@ -109,7 +119,7 @@ function clearAIChat() {
       'Content-Type': 'application/json',
       'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
     },
-    body: JSON.stringify({ issue_id: currentIssueId })
+    body: JSON.stringify({ issue_id: issueId })
   })
   .then(response => response.json())
   .then(data => {
@@ -217,9 +227,10 @@ function showAIChatLoading(show) {
 }
 
 function loadAIChatHistory() {
-  if (!currentIssueId) return;
+  const issueId = currentIssueId || getIssueIdFromUrl();
+  if (!issueId) return;
   
-  fetch('/ai_chat/history?issue_id=' + currentIssueId, {
+  fetch('/ai_chat/history?issue_id=' + issueId, {
     method: 'GET',
     headers: {
       'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
