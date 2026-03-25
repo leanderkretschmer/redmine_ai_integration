@@ -29,21 +29,16 @@
   letter-spacing: 0.5px;
 }
 
-.ai-chat-clear-btn {
-  background: #f2f2f2;
-  border: 1px solid #ccc;
-  color: #666;
+.ai-chat-clear-link {
+  color: #c00;
   font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 3px;
+  text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.ai-chat-clear-btn:hover {
-  background: #e5e5e5;
-  color: #333;
-  border-color: #bbb;
+.ai-chat-clear-link:hover {
+  text-decoration: underline;
+  color: #a00;
 }
 
 .ai-chat-messages {

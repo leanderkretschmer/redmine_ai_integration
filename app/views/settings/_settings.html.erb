@@ -119,18 +119,27 @@
       margin: 10px 0;
     }
     
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 10px 0;
-      cursor: pointer;
-    }
+    .ai-checkbox-row {
+       margin: 15px 0 15px 0;
+       padding-left: 230px; /* 180px (standard label width) + 50px */
+       display: flex;
+       align-items: center;
+       gap: 12px;
+       font-size: 13px;
+     }
     
-    .checkbox-label input[type="checkbox"] {
+    .ai-checkbox-row input[type="checkbox"] {
       margin: 0;
       width: 16px;
       height: 16px;
+    }
+    
+    .ai-checkbox-row label {
+      float: none !important;
+      width: auto !important;
+      margin: 0 !important;
+      font-weight: normal;
+      cursor: pointer;
     }
   </style>
 <% end %>
@@ -186,9 +195,9 @@
         <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
       
-      <div class="checkbox-label">
+      <div class="ai-checkbox-row">
         <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
-        <%= label_tag 'ollama_streaming_toggle', 'Streaming Response aktivieren' %>
+        <span onclick="document.getElementById('ollama_streaming_toggle').click()" style="cursor:pointer;">Streaming Response aktivieren</span>
       </div>
     </div>
 
@@ -246,12 +255,12 @@
           <em class="info">Benutzerdefinierter Prompt für Textverbesserung</em>
         </p>
         
-        <div class="checkbox-label">
+        <div class="ai-checkbox-row">
           <%= check_box_tag 'settings[slim_response]', '1', @settings['slim_response'] == '1', id: 'slim_response_toggle' %>
-          <%= label_tag 'slim_response_toggle', 'Slim Response (nur das Wesentliche)' %>
+          <span onclick="document.getElementById('slim_response_toggle').click()" style="cursor:pointer;">Slim Response (nur das Wesentliche)</span>
         </div>
         
-        <p style="margin-top: 5px;">
+        <p style="padding-left: 230px; margin-top: 0;">
           <em class="info">Bei aktiviertem "Slim Response" wird ein optimierter Prompt verwendet, der nur das vom Benutzer Gewünschte zurückgibt.</em>
         </p>
       </div>
