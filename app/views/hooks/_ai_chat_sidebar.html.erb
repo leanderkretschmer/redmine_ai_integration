@@ -1,7 +1,6 @@
 <div id="ai-chat-sidebar" class="ai-chat-container">
   <div class="ai-chat-header">
     <h3>KI-Assistent</h3>
-    <a href="javascript:void(0)" onclick="clearAIChat()" class="ai-chat-clear-link">Verlauf löschen</a>
   </div>
   <div class="ai-chat-messages" id="ai-chat-messages">
     <div class="ai-chat-welcome">
@@ -11,9 +10,12 @@
   
   <div class="ai-chat-input-container">
     <textarea id="ai-chat-input" placeholder="Frage stellen..." rows="2"></textarea>
-    <button id="ai-chat-send" class="button ai-chat-send-btn" onclick="sendAIChatMessage()">
-      <span>Fragen</span>
-    </button>
+    <div class="ai-chat-button-row">
+      <a href="javascript:void(0)" onclick="clearAIChat()" class="ai-chat-clear-link">Verlauf löschen</a>
+      <button id="ai-chat-send" class="button ai-chat-send-btn" onclick="sendAIChatMessage()">
+        <span>Fragen</span>
+      </button>
+    </div>
   </div>
   
   <div id="ai-chat-loading" class="ai-chat-loading" style="display: none;">
