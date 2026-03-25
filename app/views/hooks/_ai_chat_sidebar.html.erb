@@ -1,0 +1,216 @@
+<div id="ai-chat-sidebar" class="ai-chat-container">
+  <h3>🤖 KI-Assistent</h3>
+  <div class="ai-chat-messages" id="ai-chat-messages">
+    <div class="ai-chat-welcome">
+      <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
+    </div>
+  </div>
+  
+  <div class="ai-chat-input-container">
+    <textarea id="ai-chat-input" placeholder="Frage stellen..." rows="2"></textarea>
+    <button id="ai-chat-send" class="button ai-chat-send-btn">
+      <span>Fragen</span>
+    </button>
+  </div>
+  
+  <div id="ai-chat-loading" class="ai-chat-loading" style="display: none;">
+    <span class="ai-chat-spinner"></span>
+    <span>Analysiere...</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  let currentIssueId = null;
+  let isLoading = false;
+  
+  function init() {
+    // Extrahiere Issue-ID aus URL
+    const match = window.location.pathname.match(/\/issues\/(\d+)/);
+    if (!match) return;
+    
+    currentIssueId = match[1];
+    setupEventListeners();
+    loadChatHistory();
+  }
+  
+  function setupEventListeners() {
+    const sendBtn = document.getElementById('ai-chat-send');
+    const input = document.getElementById('ai-chat-input');
+    
+    if (sendBtn) {
+      sendBtn.addEventListener('click', sendMessage);
+    }
+    
+    if (input) {
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    }
+  }
+  
+  function sendMessage() {
+    const input = document.getElementById('ai-chat-input');
+    const question = input.value.trim();
+    
+    if (!question || isLoading || !currentIssueId) return;
+    
+    // Füge Frage zur Anzeige hinzu
+    addMessageToChat('user', question);
+    input.value = '';
+    
+    // Zeige Lade-Indikator
+    showLoading(true);
+    
+    // Sende Anfrage
+    const formData = new FormData();
+    formData.append('issue_id', currentIssueId);
+    formData.append('question', question);
+    
+    fetch('/ai_chat/ask', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': getCSRFToken()
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      showLoading(false);
+      
+      if (data.error) {
+        addMessageToChat('error', 'Fehler: ' + data.error);
+      } else {
+        addMessageToChat('ai', data.answer, data.journal_references);
+      }
+    })
+    .catch(error => {
+      showLoading(false);
+      addMessageToChat('error', 'Fehler: ' + error.message);
+    });
+  }
+  
+  function addMessageToChat(sender, content, journalReferences = []) {
+    const messagesContainer = document.getElementById('ai-chat-messages');
+    const welcomeMsg = messagesContainer.querySelector('.ai-chat-welcome');
+    
+    // Entferne Willkommensnachricht beim ersten Mal
+    if (welcomeMsg && sender === 'user') {
+      welcomeMsg.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-chat-message ai-chat-${sender}`;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'ai-chat-content';
+    contentDiv.innerHTML = content; // HTML erlaubt für Links
+    
+    messageDiv.appendChild(contentDiv);
+    
+    // Füge Zeitstempel hinzu
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'ai-chat-time';
+    timeDiv.textContent = new Date().toLocaleTimeString();
+    messageDiv.appendChild(timeDiv);
+    
+    messagesContainer.appendChild(messageDiv);
+    
+    // Scrolle nach unten
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Füge Event-Listener für Journal-Links hinzu
+    setupJournalLinks(contentDiv);
+  }
+  
+  function setupJournalLinks(container) {
+    const links = container.querySelectorAll('.ai-journal-link');
+    links.forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const journalId = this.dataset.journalId;
+        scrollToJournal(journalId);
+      });
+    });
+  }
+  
+  function scrollToJournal(journalId) {
+    const journalElement = document.querySelector(`#change-${journalId}`);
+    if (journalElement) {
+      journalElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Hebe das Element kurz hervor
+      journalElement.style.backgroundColor = '#fffacd';
+      setTimeout(() => {
+        journalElement.style.backgroundColor = '';
+      }, 2000);
+    }
+  }
+  
+  function showLoading(show) {
+    isLoading = show;
+    const loadingDiv = document.getElementById('ai-chat-loading');
+    const sendBtn = document.getElementById('ai-chat-send');
+    const input = document.getElementById('ai-chat-input');
+    
+    if (loadingDiv) {
+      loadingDiv.style.display = show ? 'flex' : 'none';
+    }
+    
+    if (sendBtn) {
+      sendBtn.disabled = show;
+      sendBtn.classList.toggle('ai-chat-disabled', show);
+    }
+    
+    if (input) {
+      input.disabled = show;
+    }
+  }
+  
+  function loadChatHistory() {
+    if (!currentIssueId) return;
+    
+    fetch(`/ai_chat/history?issue_id=${currentIssueId}`, {
+      method: 'GET',
+      headers: {
+        'X-CSRF-Token': getCSRFToken()
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.messages && data.messages.length > 0) {
+        // Entferne Willkommensnachricht
+        const welcomeMsg = document.querySelector('.ai-chat-welcome');
+        if (welcomeMsg) {
+          welcomeMsg.remove();
+        }
+        
+        // Zeige Historie
+        data.messages.forEach(msg => {
+          addMessageToChat('user', msg.question);
+          addMessageToChat('ai', msg.answer, msg.journal_references);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Fehler beim Laden des Chat-Verlaufs:', error);
+    });
+  }
+  
+  function getCSRFToken() {
+    const token = document.querySelector('meta[name="csrf-token"]');
+    return token ? token.getAttribute('content') : '';
+  }
+  
+  // Initialisierung
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
