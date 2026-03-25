@@ -91,9 +91,12 @@ class AiRewriteController < ApplicationController
     session_id = params[:session_id]
     issue_id = params[:issue_id]&.to_i
     field_type = params[:field_type]
+    journal_id = params[:journal_id]
 
     if session_id.blank? && issue_id.present?
-      latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
+      query = AiTextVersion.where(issue_id: issue_id, field_type: field_type)
+      query = query.where(journal_id: journal_id) if journal_id.present?
+      latest = query.order(last_changed_on: :desc).first
       session_id = latest&.session_id
     end
 
@@ -111,10 +114,14 @@ class AiRewriteController < ApplicationController
   def check_versions
     issue_id = params[:issue_id]
     field_type = params[:field_type] || 'description'
+    journal_id = params[:journal_id]
     
     return render json: { has_versions: false } if issue_id.blank?
     
-    latest = AiTextVersion.where(issue_id: issue_id, field_type: field_type).order(last_changed_on: :desc).first
+    query = AiTextVersion.where(issue_id: issue_id, field_type: field_type)
+    query = query.where(journal_id: journal_id) if journal_id.present?
+    
+    latest = query.order(last_changed_on: :desc).first
     
     if latest
       original = AiTextVersion.where(session_id: latest.session_id).order(:created_at).first

@@ -17,11 +17,11 @@
 /* Neue AI-Buttons - Circle Theme Style */
 .ai-correction-button,
 .ai-complex-button {
-  padding: 8px 18px;
-  font-size: 14px;
+  padding: 6px 14px;
+  font-size: 13px;
   border: none;
-  border-radius: 20px; /* Fully rounded pill shape */
-  background: #5ca9dd;
+  border-radius: 4px; /* Circle Theme Style */
+  background: #2996cc; /* Circle Theme Blue */
   color: white;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -31,20 +31,17 @@
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
   font-weight: bold;
-  box-shadow: 0 1px 3px rgba(92, 169, 221, 0.2);
 }
 
 .ai-correction-button:hover,
 .ai-complex-button:hover {
-  background: #4a9bc7;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(92, 169, 221, 0.3);
+  background: #1e7099;
   color: white;
 }
 
 .ai-correction-button:active,
 .ai-complex-button:active {
-  transform: translateY(0);
+  transform: translateY(1px);
 }
 
 .ai-correction-button:disabled,
@@ -52,62 +49,53 @@
   opacity: 0.6;
   cursor: not-allowed;
   background: #ccc;
-  box-shadow: none;
   transform: none;
 }
 
 /* Navigation Buttons (bestehend) */
 .ai-prev-button,
 .ai-next-button {
-  padding: 6px 14px;
-  font-size: 14px;
+  padding: 4px 10px;
+  font-size: 13px;
   border: 1px solid #ddd;
-  border-radius: 20px; /* Rounded pill shape */
-  background: #f9f9f9;
+  border-radius: 4px; /* Circle Theme Style */
+  background: #f4f4f4;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 40px;
+  min-width: 30px;
   color: #333;
 }
 
 .ai-prev-button:hover,
 .ai-next-button:hover {
-  background: #f0f0f0;
+  background: #e8e8e8;
   border-color: #ccc;
-}
-
-.ai-prev-button:disabled,
-.ai-next-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #fdfdfd;
-  color: #bbb;
 }
 
 /* Versions-Dropdown */
 .ai-version-select {
-  padding: 6px 12px;
-  font-size: 14px;
+  padding: 4px 8px;
+  font-size: 13px;
   border: 1px solid #ddd;
-  border-radius: 20px; /* Rounded */
+  border-radius: 4px; /* Circle Theme Style */
   background: white;
-  min-width: 100px;
-  height: 35px;
+  min-width: 80px;
+  height: 28px;
   cursor: pointer;
 }
 
 .ai-version-select:focus {
   outline: none;
-  border-color: #5ca9dd;
+  border-color: #2996cc;
 }
 
 /* Komplexe Anfrage Input */
 .ai-complex-input {
   width: 100%;
-  padding: 10px 15px;
-  font-size: 14px;
+  padding: 8px 12px;
+  font-size: 13px;
   border: 1px solid #ddd;
-  border-radius: 20px; /* Rounded like circle theme */
+  border-radius: 4px; /* Circle Theme Style */
   background: white;
   margin-top: 10px;
   box-sizing: border-box;

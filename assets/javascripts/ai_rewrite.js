@@ -1,12 +1,23 @@
 (function() {
   'use strict';
 
-  let currentSessionId = null;
-  let currentVersionId = null;
-  let versionHistory = {
-    canGoPrev: false,
-    canGoNext: false
-  };
+  // Map zum Speichern von Session-Daten pro Textarea
+  const textareaSessions = new Map();
+
+  // Session-Daten für eine Textarea abrufen oder initialisieren
+  function getSessionData(textarea) {
+    if (!textareaSessions.has(textarea)) {
+      textareaSessions.set(textarea, {
+        sessionId: null,
+        versionId: null,
+        versionHistory: {
+          canGoPrev: false,
+          canGoNext: false
+        }
+      });
+    }
+    return textareaSessions.get(textarea);
+  }
 
   // Session-ID generieren
   function generateSessionId() {
@@ -19,6 +30,9 @@
     if (textarea.parentNode.querySelector('.ai-buttons-container')) {
       return;
     }
+
+    // Initialisiere Session-Daten für dieses Feld
+    const sessionData = getSessionData(textarea);
 
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'ai-buttons-container';
@@ -160,15 +174,17 @@
   // Generische AI-Anfrage Funktion
   function handleAIRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, requestType) {
     const issueId = extractIssueIdFromUrl();
+    const journalId = extractJournalId(textarea);
     const fieldType = detectFieldType(textarea);
+    const sessionData = getSessionData(textarea);
     
-    if (!currentSessionId) {
-      currentSessionId = generateSessionId();
+    if (!sessionData.sessionId) {
+      sessionData.sessionId = generateSessionId();
     }
 
     // Speichere Original-Version wenn noch nicht vorhanden
-    if (!currentVersionId) {
-      ensureOriginalVersionSaved(originalText, currentSessionId, fieldType, issueId);
+    if (!sessionData.versionId) {
+      ensureOriginalVersionSaved(originalText, sessionData.sessionId, fieldType, issueId, journalId);
     }
 
     // Button-Status setzen
@@ -183,9 +199,10 @@
     const formData = new FormData();
     formData.append('original_text', originalText);
     formData.append('system_prompt', systemPrompt);
-    formData.append('session_id', currentSessionId);
+    formData.append('session_id', sessionData.sessionId);
     formData.append('field_type', fieldType);
     formData.append('issue_id', issueId || '');
+    if (journalId) formData.append('journal_id', journalId);
     formData.append('provider', provider);
     formData.append('request_type', requestType);
 
@@ -215,16 +232,16 @@
 
       // Verbesserten Text einfügen
       textarea.value = data.improved_text;
-      currentVersionId = data.version_id;
+      sessionData.versionId = data.version_id;
       
       // Buttons aktualisieren
       prevButton.style.display = 'inline-block';
       nextButton.style.display = 'inline-block';
       
       // Navigation-Status aktualisieren
-      versionHistory.canGoPrev = true;
-      versionHistory.canGoNext = false;
-      updateNavigationButtons(prevButton, nextButton);
+      sessionData.versionHistory.canGoPrev = true;
+      sessionData.versionHistory.canGoNext = false;
+      updateNavigationButtons(textarea, prevButton, nextButton);
 
       // Versionsauswahl aktualisieren
       const versionSelect = textarea.parentNode.querySelector('.ai-version-select');
@@ -235,8 +252,8 @@
 
       // Event für Textänderungen durch Benutzer
       textarea.addEventListener('input', function onInput() {
-        if (currentVersionId) {
-          saveCurrentVersion(textarea.value, currentVersionId);
+        if (sessionData.versionId) {
+          saveCurrentVersion(textarea.value, sessionData.versionId);
         }
         textarea.removeEventListener('input', onInput);
       });
@@ -265,7 +282,7 @@
     handleAIRequest(textarea, rewriteButton, prevButton, nextButton, originalText, systemPrompt, 'rewrite');
   }
 
-  // Rest der Funktionen bleibt gleich...
+  // Button-Loading Status setzen
   function setButtonLoading(button, loading) {
     if (loading) {
       button.disabled = true;
@@ -281,19 +298,27 @@
     }
   }
 
-  function updateNavigationButtons(prevButton, nextButton) {
-    prevButton.disabled = !versionHistory.canGoPrev;
-    nextButton.disabled = !versionHistory.canGoNext;
+  // Navigations-Buttons aktualisieren
+  function updateNavigationButtons(textarea, prevButton, nextButton) {
+    const sessionData = getSessionData(textarea);
+    prevButton.disabled = !sessionData.versionHistory.canGoPrev;
+    nextButton.disabled = !sessionData.versionHistory.canGoNext;
   }
 
+  // Vorhandene Versionen prüfen
   function checkExistingVersions(textarea, prevButton, nextButton) {
     const issueId = extractIssueIdFromUrl();
+    const journalId = extractJournalId(textarea);
     const fieldType = detectFieldType(textarea);
+    const sessionData = getSessionData(textarea);
     
-    return fetch('/ai_rewrite/check_versions?' + new URLSearchParams({
+    const params = new URLSearchParams({
       issue_id: issueId,
       field_type: fieldType
-    }), {
+    });
+    if (journalId) params.append('journal_id', journalId);
+    
+    return fetch('/ai_rewrite/check_versions?' + params.toString(), {
       method: 'GET',
       headers: {
         'X-CSRF-Token': getCSRFToken()
@@ -302,14 +327,14 @@
     .then(response => response.json())
     .then(data => {
       if (data && data.has_versions) {
-        currentSessionId = data.session_id;
-        currentVersionId = data.version_id;
-        versionHistory.canGoPrev = data.can_go_prev;
-        versionHistory.canGoNext = data.can_go_next;
+        sessionData.sessionId = data.session_id;
+        sessionData.versionId = data.version_id;
+        sessionData.versionHistory.canGoPrev = data.can_go_prev;
+        sessionData.versionHistory.canGoNext = data.can_go_next;
         
         prevButton.style.display = 'inline-block';
         nextButton.style.display = 'inline-block';
-        updateNavigationButtons(prevButton, nextButton);
+        updateNavigationButtons(textarea, prevButton, nextButton);
         
         return true;
       }
@@ -321,11 +346,13 @@
     });
   }
 
+  // Version navigieren
   function handleNavigateVersion(textarea, direction, prevButton, nextButton) {
-    if (!currentVersionId) return;
+    const sessionData = getSessionData(textarea);
+    if (!sessionData.versionId) return;
     
-    const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(currentVersionId) + 
-                '&direction=' + direction + '&session_id=' + encodeURIComponent(currentSessionId || '');
+    const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(sessionData.versionId) + 
+                '&direction=' + direction + '&session_id=' + encodeURIComponent(sessionData.sessionId || '');
     
     fetch(url, {
       method: 'GET',
@@ -336,14 +363,14 @@
     .then(response => response.json())
     .then(data => {
       textarea.value = data.text;
-      currentVersionId = data.version_id;
-      versionHistory.canGoPrev = data.can_go_prev;
-      versionHistory.canGoNext = data.can_go_next;
-      updateNavigationButtons(prevButton, nextButton);
+      sessionData.versionId = data.version_id;
+      sessionData.versionHistory.canGoPrev = data.can_go_prev;
+      sessionData.versionHistory.canGoNext = data.can_go_next;
+      updateNavigationButtons(textarea, prevButton, nextButton);
       
       const versionSelect = textarea.parentNode.querySelector('.ai-version-select');
       if (versionSelect) {
-        setSelectedVersionInSelect(versionSelect, currentVersionId);
+        setSelectedVersionInSelect(versionSelect, sessionData.versionId);
       }
     })
     .catch(error => {
@@ -352,9 +379,11 @@
     });
   }
 
+  // Exakte Version navigieren
   function handleNavigateExactVersion(textarea, versionId, prevButton, nextButton) {
+    const sessionData = getSessionData(textarea);
     const url = '/ai_rewrite/get_version?version_id=' + encodeURIComponent(versionId) + 
-                '&direction=exact&session_id=' + encodeURIComponent(currentSessionId || '');
+                '&direction=exact&session_id=' + encodeURIComponent(sessionData.sessionId || '');
     
     fetch(url, {
       method: 'GET',
@@ -365,10 +394,10 @@
     .then(response => response.json())
     .then(data => {
       textarea.value = data.text;
-      currentVersionId = data.version_id;
-      versionHistory.canGoPrev = data.can_go_prev;
-      versionHistory.canGoNext = data.can_go_next;
-      updateNavigationButtons(prevButton, nextButton);
+      sessionData.versionId = data.version_id;
+      sessionData.versionHistory.canGoPrev = data.can_go_prev;
+      sessionData.versionHistory.canGoNext = data.can_go_next;
+      updateNavigationButtons(textarea, prevButton, nextButton);
     })
     .catch(error => {
       console.error('Fehler beim Laden der Version:', error);
@@ -376,18 +405,17 @@
     });
   }
 
+  // Versionsliste laden
   function populateVersionSelect(versionSelect, textarea) {
     const issueId = extractIssueIdFromUrl();
-    let fieldType = 'description';
-    if (textarea.id && textarea.id.includes('notes')) {
-      fieldType = 'notes';
-    } else if (textarea.id && textarea.id.includes('description')) {
-      fieldType = 'description';
-    }
+    const journalId = extractJournalId(textarea);
+    const fieldType = detectFieldType(textarea);
+    const sessionData = getSessionData(textarea);
     
     const params = new URLSearchParams();
-    if (currentSessionId) params.append('session_id', currentSessionId);
+    if (sessionData.sessionId) params.append('session_id', sessionData.sessionId);
     if (issueId) params.append('issue_id', issueId);
+    if (journalId) params.append('journal_id', journalId);
     params.append('field_type', fieldType);
     
     fetch('/ai_rewrite/list_versions?' + params.toString(), {
@@ -408,7 +436,7 @@
       });
       if (versions.length > 0) {
         versionSelect.style.display = 'inline-block';
-        setSelectedVersionInSelect(versionSelect, currentVersionId);
+        setSelectedVersionInSelect(versionSelect, sessionData.versionId);
       } else {
         versionSelect.style.display = 'none';
       }
@@ -427,7 +455,7 @@
     }
   }
 
-  function ensureOriginalVersionSaved(originalText, sessionId, fieldType, issueId) {
+  function ensureOriginalVersionSaved(originalText, sessionId, fieldType, issueId, journalId) {
     if (!originalText) return;
     
     const formData = new FormData();
@@ -435,6 +463,7 @@
     formData.append('session_id', sessionId);
     formData.append('field_type', fieldType);
     formData.append('issue_id', issueId || '');
+    if (journalId) formData.append('journal_id', journalId);
 
     fetch('/ai_rewrite/save_version', {
       method: 'POST',
@@ -473,7 +502,32 @@
     } else if (textarea.id && textarea.id.includes('description')) {
       return 'description';
     }
+    // Fallback auf den Namen, falls ID nicht eindeutig
+    if (textarea.name && textarea.name.includes('notes')) {
+      return 'notes';
+    }
     return 'description';
+  }
+
+  function extractJournalId(textarea) {
+    // Versuche Journal-ID aus der ID der Textarea zu extrahieren (z.B. journal_123_notes)
+    let match = textarea.id.match(/journal_(\d+)_notes/);
+    if (match) return match[1];
+
+    // Versuche aus dem umschließenden Formular zu extrahieren
+    const form = textarea.closest('form');
+    if (form && form.id) {
+      match = form.id.match(/journal-(\d+)-form/);
+      if (match) return match[1];
+    }
+
+    // Versuche aus einem Hidden-Feld im Formular
+    if (form) {
+      const journalIdField = form.querySelector('input[name="journal_id"]');
+      if (journalIdField) return journalIdField.value;
+    }
+
+    return null;
   }
 
   function extractIssueIdFromUrl() {
@@ -488,8 +542,6 @@
 
   // Neue Funktion: Hole AI Settings aus dem Backend
   function loadAISettings() {
-    // Settings werden normalerweise vom Server gerendert
-    // Als Fallback können wir sie auch per AJAX holen
     return fetch('/ai_rewrite/settings', {
       method: 'GET',
       headers: {
