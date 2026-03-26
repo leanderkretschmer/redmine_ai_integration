@@ -1,3 +1,8 @@
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'ai_chat', plugin: 'redmine_ai_integration' %>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<% end %>
+
 <div id="ai-chat-sidebar" class="ai-chat-container">
   <div class="ai-chat-header">
     <h3>KI-Assistent</h3>

@@ -76,6 +76,48 @@
   line-height: 1.5;
 }
 
+.ai-chat-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Markdown Styling */
+.ai-chat-content p {
+  margin: 0 0 10px 0;
+}
+
+.ai-chat-content p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-chat-content ul, .ai-chat-content ol {
+  margin: 5px 0 10px 20px;
+  padding: 0;
+}
+
+.ai-chat-content li {
+  margin-bottom: 3px;
+}
+
+.ai-chat-content strong {
+  font-weight: bold;
+  color: #000;
+}
+
+.ai-chat-content h1, .ai-chat-content h2, .ai-chat-content h3 {
+  font-size: 1.1em;
+  margin: 10px 0 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.ai-chat-time {
+  font-size: 10px;
+  color: #999;
+  margin-top: 5px;
+  display: block;
+  text-align: right;
+}
+
 .ai-chat-user {
   background: #eef7fd;
   border: 1px solid #d0e8f8;

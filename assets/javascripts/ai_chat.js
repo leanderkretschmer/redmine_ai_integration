@@ -168,19 +168,24 @@
 
     function addMessageToChat(sender, content, journalReferences = []) {
       const messagesContainer = document.getElementById('ai-chat-messages');
-      const welcomeMsg = messagesContainer.querySelector('.ai-chat-welcome');
+      if (!messagesContainer) return;
       
-      // Entferne Willkommensnachricht beim ersten Mal
-      if (welcomeMsg && sender === 'user') {
-        welcomeMsg.remove();
-      }
+      // Entferne Willkommens-Nachricht wenn vorhanden
+      const welcome = messagesContainer.querySelector('.ai-chat-welcome');
+      if (welcome) welcome.remove();
       
       const messageDiv = document.createElement('div');
-      messageDiv.className = `ai-chat-message ai-chat-${sender}`;
+      messageDiv.className = 'ai-chat-message ai-chat-' + sender;
       
       const contentDiv = document.createElement('div');
       contentDiv.className = 'ai-chat-content';
-      contentDiv.innerHTML = content; // HTML erlaubt für Links
+      
+      // Nutze Markdown-Parser für AI-Antworten
+      if (sender === 'ai' && typeof marked !== 'undefined') {
+        contentDiv.innerHTML = marked.parse(content);
+      } else {
+        contentDiv.textContent = content;
+      }
       
       messageDiv.appendChild(contentDiv);
       
