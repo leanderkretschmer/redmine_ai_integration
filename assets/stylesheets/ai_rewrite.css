@@ -2,7 +2,7 @@
 
 /* Container und Button-Gruppen */
 .ai-buttons-container {
-  margin-top: 10px;
+  margin-top: 1px; /* 3px unter dem Textfeld */
   margin-bottom: 10px;
 }
 
