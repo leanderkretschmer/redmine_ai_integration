@@ -62,12 +62,20 @@
   vertical-align: middle;
 }
 
-.ai-action-btn .icon-reorder {
-  background-image: url('../../../images/reorder.png');
+.ai-action-btn .icon-magic-wand {
+  background-image: url('../images/magic-wand.png');
+  background-size: contain;
 }
 
-.ai-action-btn .icon-edit {
-  background-image: url('../../../images/edit.png');
+.ai-action-btn .icon-edit-svg {
+  width: 16px;
+  height: 16px;
+  fill: #169;
+  vertical-align: middle;
+}
+
+.ai-complex-button:hover .icon-edit-svg {
+  fill: #c61a1a;
 }
 
 /* Navigation Buttons (bestehend) */
@@ -137,8 +145,8 @@
 @media (prefers-color-scheme: dark) {
   .ai-correction-button,
   .ai-complex-button {
-    background: #5ca9dd;
-    color: white;
+    background: transparent;
+    color: #169;
   }
   .ai-complex-input, .ai-version-select {
     background: #fff;

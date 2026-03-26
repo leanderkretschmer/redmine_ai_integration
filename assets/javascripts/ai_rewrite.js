@@ -44,14 +44,14 @@
     const correctionButton = document.createElement('a');
     correctionButton.href = 'javascript:void(0)';
     correctionButton.className = 'ai-action-btn ai-correction-button';
-    correctionButton.innerHTML = '<span class="icon icon-reorder"></span><span class="btn-text">Korrektur</span>';
+    correctionButton.innerHTML = '<span class="icon icon-magic-wand"></span><span class="btn-text">Korrektur</span>';
     correctionButton.title = 'Automatische Korrektur oder Ausführung von Anweisungen im Text';
 
     // Komplexe Anfrage Button (neu)
     const complexButton = document.createElement('a');
     complexButton.href = 'javascript:void(0)';
     complexButton.className = 'ai-action-btn ai-complex-button';
-    complexButton.innerHTML = '<span class="icon icon-edit"></span><span class="btn-text">Erweitern</span>';
+    complexButton.innerHTML = '<svg class="icon icon-edit-svg"><use xlink:href="/assets/icons-35b4b65e.svg#icon--edit"></use></svg><span class="btn-text">Erweitern</span>';
     complexButton.title = 'Komplexe Anfrage mit zusätzlicher Anweisung';
 
     // Navigation Buttons (wie vorher)
