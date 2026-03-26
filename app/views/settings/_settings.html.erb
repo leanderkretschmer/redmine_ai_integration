@@ -153,6 +153,30 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 5px;
+      padding-left: 230px; /* Aligns with user's checkbox indentation */
+    }
+
+    .prompt-header-row label {
+      float: none !important;
+      width: auto !important;
+      margin: 0 !important;
+      font-weight: bold;
+    }
+
+    .prompt-container {
+      margin-bottom: 20px;
+    }
+
+    .prompt-container textarea {
+      margin-left: 230px;
+      width: calc(100% - 230px) !important;
+      box-sizing: border-box;
+    }
+
+    .prompt-container .info {
+      display: block;
+      margin-left: 230px;
+      margin-top: 5px;
     }
 
     .restore-defaults-btn {
@@ -170,6 +194,9 @@
       background: #e8e8e8;
       color: #333;
       border-color: #bbb;
+    }
+    .advanced-settings-content h4 {
+      margin-left: 230px;
     }
   </style>
 <% end %>
