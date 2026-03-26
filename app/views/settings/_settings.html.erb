@@ -121,7 +121,7 @@
     
     .ai-checkbox-row {
        margin: 15px 0 5px 0;
-       padding-left: 230px; /* 180px (standard label width) + 50px */
+       padding-left: 180px; /* Reduced from 230px */
        display: flex;
        align-items: center;
        gap: 12px;
@@ -143,7 +143,7 @@
     }
 
     .ai-checkbox-info {
-      padding-left: 230px;
+      padding-left: 180px; /* Reduced from 230px */
       margin-top: 0;
       margin-bottom: 15px;
     }
@@ -153,7 +153,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 5px;
-      padding-left: 230px; /* Aligns with user's checkbox indentation */
+      padding-left: 180px; /* Reduced from 230px */
     }
 
     .prompt-header-row label {
@@ -168,14 +168,14 @@
     }
 
     .prompt-container textarea {
-      margin-left: 230px;
-      width: calc(100% - 230px) !important;
+      margin-left: 180px; /* Reduced from 230px */
+      width: calc(100% - 180px) !important;
       box-sizing: border-box;
     }
 
     .prompt-container .info {
       display: block;
-      margin-left: 230px;
+      margin-left: 180px; /* Reduced from 230px */
       margin-top: 5px;
     }
 
@@ -239,7 +239,7 @@
     }
 
     .advanced-settings-content h4 {
-      margin-left: 230px;
+      margin-left: 180px; /* Reduced from 230px */
     }
   </style>
 <% end %>
@@ -248,7 +248,7 @@
   <div class="ai-integration-settings">
     <h3>AI Provider</h3>
     <p>
-      <%= label_tag 'settings[ai_provider]', 'KI-Provider' %>
+      <%= label_tag 'settings[ai_provider]', 'KI-Provider', style: 'float: left; width: 180px;' %>
       <%= select_tag 'settings[ai_provider]', 
           options_for_select([
             ['OpenAI (ChatGPT)', 'openai'],
@@ -263,41 +263,41 @@
     <div id="openai_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'openai' %>">
       <h4>OpenAI (ChatGPT)</h4>
       <p>
-        <%= label_tag 'settings[openai_api_key]', 'OpenAI API Key' %>
+        <%= label_tag 'settings[openai_api_key]', 'OpenAI API Key', style: 'float: left; width: 180px;' %>
         <%= password_field_tag 'settings[openai_api_key]', @settings['openai_api_key'], size: 60 %>
         <em class="info">Ihr OpenAI API-Schlüssel</em>
       </p>
       <p>
-        <%= label_tag 'settings[openai_model]', 'OpenAI Modell' %>
-        <div class="model-selection-group">
+        <%= label_tag 'settings[openai_model]', 'OpenAI Modell', style: 'float: left; width: 180px;' %>
+        <div class="model-selection-group" style="margin-left: 180px;">
           <%= text_field_tag 'settings[openai_model]', @settings['openai_model'] || 'gpt-3.5-turbo', size: 40, id: 'openai_model_input' %>
           <button type="button" id="openai_load_models" class="load-models-btn">Modelle laden</button>
           <select id="openai_model_select" style="display:none;"></select>
         </div>
-        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
+        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
     <div id="ollama_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'ollama' %>">
       <h4>Ollama (Lokal)</h4>
       <p>
-        <%= label_tag 'settings[ollama_url]', 'Ollama URL' %>
+        <%= label_tag 'settings[ollama_url]', 'Ollama URL', style: 'float: left; width: 180px;' %>
         <%= text_field_tag 'settings[ollama_url]', @settings['ollama_url'] || 'http://localhost:11434', size: 60 %>
         <em class="info">URL zu Ihrer Ollama-Instanz (z.B. http://localhost:11434)</em>
       </p>
       <p>
-        <%= label_tag 'settings[ollama_model]', 'Ollama Modell' %>
-        <div class="model-selection-group">
+        <%= label_tag 'settings[ollama_model]', 'Ollama Modell', style: 'float: left; width: 180px;' %>
+        <div class="model-selection-group" style="margin-left: 180px;">
           <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40, id: 'ollama_model_input' %>
           <button type="button" id="ollama_load_models" class="load-models-btn">Modelle laden</button>
           <button type="button" id="ollama_recommend_btn" class="load-models-btn" style="background-color: #2996cc; border-color: #2482b3;">Use Recommended Model</button>
           <select id="ollama_model_select" style="display:none;"></select>
         </div>
-        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
+        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
       
-      <div id="ollama_recommendation_info" class="recommendation-info"></div>
-      <div id="ollama_recommended_models" class="recommended-models-list">
+      <div id="ollama_recommendation_info" class="recommendation-info" style="margin-left: 180px;"></div>
+      <div id="ollama_recommended_models" class="recommended-models-list" style="margin-left: 180px;">
         <strong>Empfohlene Modelle (nicht gefunden):</strong>
         <ul id="recommended_models_ul" style="margin-top: 10px; margin-left: 20px;">
           <li>glm4 <button type="button" class="pull-model-btn" onclick="pullOllamaModel('glm4')">ollama pull glm4</button></li>
@@ -307,7 +307,7 @@
         </ul>
       </div>
       
-      <div class="ai-checkbox-row">
+      <div class="ai-checkbox-row" style="padding-left: 180px;">
         <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
         <span onclick="document.getElementById('ollama_streaming_toggle').click()" style="cursor:pointer;">Streaming Response aktivieren</span>
       </div>
@@ -316,36 +316,36 @@
     <div id="gemini_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'gemini' %>">
       <h4>Google Gemini</h4>
       <p>
-        <%= label_tag 'settings[gemini_api_key]', 'Gemini API Key' %>
+        <%= label_tag 'settings[gemini_api_key]', 'Gemini API Key', style: 'float: left; width: 180px;' %>
         <%= password_field_tag 'settings[gemini_api_key]', @settings['gemini_api_key'], size: 60 %>
         <em class="info">Ihr Google Gemini API-Schlüssel</em>
       </p>
       <p>
-        <%= label_tag 'settings[gemini_model]', 'Gemini Modell' %>
-        <div class="model-selection-group">
+        <%= label_tag 'settings[gemini_model]', 'Gemini Modell', style: 'float: left; width: 180px;' %>
+        <div class="model-selection-group" style="margin-left: 180px;">
           <%= text_field_tag 'settings[gemini_model]', @settings['gemini_model'] || 'gemini-pro', size: 40, id: 'gemini_model_input' %>
           <button type="button" id="gemini_load_models" class="load-models-btn">Modelle laden</button>
           <select id="gemini_model_select" style="display:none;"></select>
         </div>
-        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
+        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
     <div id="claude_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'claude' %>">
       <h4>Anthropic Claude</h4>
       <p>
-        <%= label_tag 'settings[claude_api_key]', 'Claude API Key' %>
+        <%= label_tag 'settings[claude_api_key]', 'Claude API Key', style: 'float: left; width: 180px;' %>
         <%= password_field_tag 'settings[claude_api_key]', @settings['claude_api_key'], size: 60 %>
         <em class="info">Ihr Anthropic Claude API-Schlüssel</em>
       </p>
       <p>
-        <%= label_tag 'settings[claude_model]', 'Claude Modell' %>
-        <div class="model-selection-group">
+        <%= label_tag 'settings[claude_model]', 'Claude Modell', style: 'float: left; width: 180px;' %>
+        <div class="model-selection-group" style="margin-left: 180px;">
           <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40, id: 'claude_model_input' %>
           <button type="button" id="claude_load_models" class="load-models-btn">Modelle laden</button>
           <select id="claude_model_select" style="display:none;"></select>
         </div>
-        <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
+        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
     </div>
 
