@@ -17,6 +17,24 @@ class AiTextVersion < ActiveRecord::Base
   scope :for_issue, ->(issue_id) { where(issue_id: issue_id).order(last_changed_on: :desc) }
   scope :recent, -> { order(last_changed_on: :desc) }
   
+  def self.token_stats(period = nil)
+    query = self.all
+    case period
+    when :daily
+      query = query.where('created_at >= ?', Time.current.beginning_of_day)
+    when :weekly
+      query = query.where('created_at >= ?', Time.current.beginning_of_week)
+    when :monthly
+      query = query.where('created_at >= ?', Time.current.beginning_of_month)
+    end
+    
+    {
+      prompt: query.sum(:prompt_tokens),
+      completion: query.sum(:completion_tokens),
+      total: query.sum(:total_tokens)
+    }
+  end
+  
   def self.find_by_version_id(version_id)
     where(version_id: version_id).first
   end

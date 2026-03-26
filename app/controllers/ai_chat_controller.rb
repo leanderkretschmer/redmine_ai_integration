@@ -23,7 +23,9 @@ class AiChatController < ApplicationController
     provider = settings['ai_provider']
     
     begin
-      answer = call_ai_for_chat(question, system_prompt, provider, settings)
+      result = call_ai_for_chat(question, system_prompt, provider, settings)
+      answer = result[:text]
+      token_info = result[:tokens] || {}
       
       # Extrahiere Journal-Referenzen
       journal_references = extract_journal_references_from_answer(answer, issue)
@@ -36,7 +38,11 @@ class AiChatController < ApplicationController
         answer: answer,
         context_used: context.truncate(1000), # Begrenze Kontext-Länge
         model_used: settings["#{provider}_model"] || provider,
-        journal_id_referenced: journal_references.first&.id
+        journal_id_referenced: journal_references.first&.id,
+        provider: provider,
+        prompt_tokens: token_info[:prompt] || 0,
+        completion_tokens: token_info[:completion] || 0,
+        total_tokens: token_info[:total] || 0
       )
       
       # Formatiere Antwort mit Links
@@ -153,7 +159,14 @@ class AiChatController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result['choices'][0]['message']['content'].strip
+      {
+        text: result['choices'][0]['message']['content'].strip,
+        tokens: {
+          prompt: result.dig('usage', 'prompt_tokens'),
+          completion: result.dig('usage', 'completion_tokens'),
+          total: result.dig('usage', 'total_tokens')
+        }
+      }
     else
       raise "OpenAI API Fehler: #{response.code} - #{response.body}"
     end
@@ -191,7 +204,14 @@ class AiChatController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip
+      {
+        text: result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip,
+        tokens: {
+          prompt: result.dig('usageMetadata', 'promptTokenCount'),
+          completion: result.dig('usageMetadata', 'candidatesTokenCount'),
+          total: result.dig('usageMetadata', 'totalTokenCount')
+        }
+      }
     else
       raise "Gemini API Fehler: #{response.code} - #{response.body}"
     end
@@ -225,7 +245,14 @@ class AiChatController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result.dig('content', 0, 'text').strip
+      {
+        text: result.dig('content', 0, 'text').strip,
+        tokens: {
+          prompt: result.dig('usage', 'input_tokens'),
+          completion: result.dig('usage', 'output_tokens'),
+          total: (result.dig('usage', 'input_tokens').to_i + result.dig('usage', 'output_tokens').to_i)
+        }
+      }
     else
       raise "Claude API Fehler: #{response.code} - #{response.body}"
     end
@@ -263,7 +290,14 @@ class AiChatController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result['response'].strip
+      {
+        text: result['response'].strip,
+        tokens: {
+          prompt: result['prompt_eval_count'],
+          completion: result['eval_count'],
+          total: (result['prompt_eval_count'].to_i + result['eval_count'].to_i)
+        }
+      }
     else
       raise "Ollama API Fehler: #{response.code} - #{response.body}"
     end

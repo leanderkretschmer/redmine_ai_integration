@@ -238,6 +238,65 @@
       margin-left: 5px;
     }
 
+    .billing-stats {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .stat-card h5 {
+      margin: 0 0 10px 0;
+      color: #666;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #2996cc;
+    }
+
+    .billing-log {
+      margin-top: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .billing-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .billing-table th, .billing-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .billing-table th {
+      background: #f5f5f5;
+      position: sticky;
+      top: 0;
+    }
+
+    .billing-section {
+      margin-top: 30px;
+      border-top: 1px solid #ddd;
+      padding-top: 20px;
+    }
+
     .advanced-settings-content h4 {
       margin-left: 180px; /* Reduced from 230px */
     }
@@ -373,6 +432,81 @@
           <%= text_area_tag 'settings[chat_system_prompt]', @settings['chat_system_prompt'], rows: 6, cols: 80, style: 'width: 100%;', id: 'settings_chat_system_prompt' %>
           <em class="info">Dieser Prompt definiert das Verhalten des KI-Assistenten in der Sidebar.</em>
         </div>
+      </div>
+    </div>
+
+    <div class="billing-section">
+      <h3>Billing & Token Nutzung</h3>
+      
+      <%
+        chat_stats_day = AiChatMessage.token_stats(:daily)
+        chat_stats_week = AiChatMessage.token_stats(:weekly)
+        chat_stats_month = AiChatMessage.token_stats(:monthly)
+        
+        rewrite_stats_day = AiTextVersion.token_stats(:daily)
+        rewrite_stats_week = AiTextVersion.token_stats(:weekly)
+        rewrite_stats_month = AiTextVersion.token_stats(:monthly)
+        
+        total_day = chat_stats_day[:total] + rewrite_stats_day[:total]
+        total_week = chat_stats_week[:total] + rewrite_stats_week[:total]
+        total_month = chat_stats_month[:total] + rewrite_stats_month[:total]
+      %>
+      
+      <div class="billing-stats">
+        <div class="stat-card">
+          <h5>Heute</h5>
+          <div class="stat-value"><%= number_with_delimiter(total_day) %></div>
+          <em class="info">Tokens gesamt</em>
+        </div>
+        <div class="stat-card">
+          <h5>Diese Woche</h5>
+          <div class="stat-value"><%= number_with_delimiter(total_week) %></div>
+          <em class="info">Tokens gesamt</em>
+        </div>
+        <div class="stat-card">
+          <h5>Diesen Monat</h5>
+          <div class="stat-value"><%= number_with_delimiter(total_month) %></div>
+          <em class="info">Tokens gesamt</em>
+        </div>
+      </div>
+
+      <h4>Letzte Aktivitäten</h4>
+      <div class="billing-log">
+        <table class="billing-table">
+          <thead>
+            <tr>
+              <th>Zeitpunkt</th>
+              <th>Typ</th>
+              <th>Provider</th>
+              <th>Input Tokens</th>
+              <th>Output Tokens</th>
+              <th>Gesamt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% 
+              recent_chat = AiChatMessage.recent.limit(25).map { |m| { time: m.created_at, type: 'Chat', provider: m.provider, in: m.prompt_tokens, out: m.completion_tokens, total: m.total_tokens } }
+              recent_rewrite = AiTextVersion.where("version_id NOT LIKE '%_original'").recent.limit(25).map { |v| { time: v.created_at, type: 'Rewrite', provider: v.provider, in: v.prompt_tokens, out: v.completion_tokens, total: v.total_tokens } }
+              
+              all_recent = (recent_chat + recent_rewrite).sort_by { |a| a[:time] }.reverse.first(50)
+            %>
+            <% all_recent.each do |log| %>
+              <tr>
+                <td><%= format_time(log[:time]) %></td>
+                <td><%= log[:type] %></td>
+                <td><%= log[:provider] || 'unbekannt' %></td>
+                <td><%= number_with_delimiter(log[:in]) %></td>
+                <td><%= number_with_delimiter(log[:out]) %></td>
+                <td><strong><%= number_with_delimiter(log[:total]) %></strong></td>
+              </tr>
+            <% end %>
+            <% if all_recent.empty? %>
+              <tr>
+                <td colspan="6" style="text-align: center;">Noch keine Aktivitäten aufgezeichnet.</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     </div>
 

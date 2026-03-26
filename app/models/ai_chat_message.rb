@@ -12,6 +12,24 @@ class AiChatMessage < ActiveRecord::Base
   scope :for_issue, ->(issue_id) { where(issue_id: issue_id).order(:created_at) }
   scope :recent, -> { order(created_at: :desc) }
   
+  def self.token_stats(period = nil)
+    query = self.all
+    case period
+    when :daily
+      query = query.where('created_at >= ?', Time.current.beginning_of_day)
+    when :weekly
+      query = query.where('created_at >= ?', Time.current.beginning_of_week)
+    when :monthly
+      query = query.where('created_at >= ?', Time.current.beginning_of_month)
+    end
+    
+    {
+      prompt: query.sum(:prompt_tokens),
+      completion: query.sum(:completion_tokens),
+      total: query.sum(:total_tokens)
+    }
+  end
+  
   def self.build_context_for_issue(issue)
     journals = issue.journals.includes(:user, :details).order(:created_on)
     context_parts = []

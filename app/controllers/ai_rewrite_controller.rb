@@ -20,7 +20,7 @@ class AiRewriteController < ApplicationController
     settings = Setting.plugin_redmine_ai_integration
     
     begin
-      improved_text = case provider
+      result = case provider
       when 'openai'
         call_openai(original_text, system_prompt, settings)
       when 'gemini'
@@ -33,12 +33,15 @@ class AiRewriteController < ApplicationController
         raise "Unbekannter Provider: #{provider}"
       end
       
+      improved_text = result[:text]
+      token_info = result[:tokens] || {}
+      
       if improved_text.blank?
         Rails.logger.error "AI Rewrite Error - Provider returned empty text"
         raise "Die KI hat keine Antwort geliefert. Bitte versuchen Sie es erneut."
       end
       
-      version_id = save_text_version(original_text, improved_text, session_id, field_type, issue_id)
+      version_id = save_text_version(original_text, improved_text, session_id, field_type, issue_id, provider, token_info)
       
       Rails.logger.info "AI Rewrite Success - Improved Text Length: #{improved_text&.length}"
       
@@ -280,7 +283,14 @@ class AiRewriteController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result['choices'][0]['message']['content'].strip
+      {
+        text: result['choices'][0]['message']['content'].strip,
+        tokens: {
+          prompt: result.dig('usage', 'prompt_tokens'),
+          completion: result.dig('usage', 'completion_tokens'),
+          total: result.dig('usage', 'total_tokens')
+        }
+      }
     else
       raise "OpenAI API Fehler: #{response.code} - #{response.body}"
     end
@@ -318,7 +328,14 @@ class AiRewriteController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip
+      {
+        text: result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip,
+        tokens: {
+          prompt: result.dig('usageMetadata', 'promptTokenCount'),
+          completion: result.dig('usageMetadata', 'candidatesTokenCount'),
+          total: result.dig('usageMetadata', 'totalTokenCount')
+        }
+      }
     else
       raise "Gemini API Fehler: #{response.code} - #{response.body}"
     end
@@ -352,7 +369,14 @@ class AiRewriteController < ApplicationController
     
     if response.code == '200'
       result = JSON.parse(response.body)
-      result.dig('content', 0, 'text').strip
+      {
+        text: result.dig('content', 0, 'text').strip,
+        tokens: {
+          prompt: result.dig('usage', 'input_tokens'),
+          completion: result.dig('usage', 'output_tokens'),
+          total: (result.dig('usage', 'input_tokens').to_i + result.dig('usage', 'output_tokens').to_i)
+        }
+      }
     else
       raise "Claude API Fehler: #{response.code} - #{response.body}"
     end
@@ -393,7 +417,14 @@ class AiRewriteController < ApplicationController
         result = JSON.parse(response.body)
         improved = result['response'].to_s.strip
         Rails.logger.info "Ollama Success - Response length: #{improved.length}, Raw: #{response.body[0..100]}"
-        improved
+        {
+          text: improved,
+          tokens: {
+            prompt: result['prompt_eval_count'],
+            completion: result['eval_count'],
+            total: (result['prompt_eval_count'].to_i + result['eval_count'].to_i)
+          }
+        }
       rescue JSON::ParserError => e
         Rails.logger.error "Ollama JSON Error - Body: #{response.body}"
         raise "Ollama lieferte ungültiges JSON: #{e.message}"
@@ -553,7 +584,7 @@ class AiRewriteController < ApplicationController
     Rails.logger.info "Ensure Original Version - Session ID: #{session_id}, Saved original text, Version ID: #{version.version_id}"
   end
   
-  def save_text_version(original_text, improved_text, session_id = nil, field_type = nil, issue_id = nil)
+  def save_text_version(original_text, improved_text, session_id = nil, field_type = nil, issue_id = nil, provider = nil, token_info = {})
     session_id ||= params[:session_id] || generate_session_id
     field_type ||= params[:field_type] || detect_field_type
     issue_id ||= params[:issue_id] || extract_issue_id
@@ -575,10 +606,14 @@ class AiRewriteController < ApplicationController
       field_type: field_type,
       last_changed_on: Time.current,
       journal_id: params[:journal_id],
-      fixed_version_id: fetch_fixed_version_id(issue_id)
+      fixed_version_id: fetch_fixed_version_id(issue_id),
+      provider: provider,
+      prompt_tokens: token_info[:prompt] || 0,
+      completion_tokens: token_info[:completion] || 0,
+      total_tokens: token_info[:total] || 0
     )
     
-    Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}, Issue ID: #{issue_id}"
+    Rails.logger.info "Save Text Version - Session ID: #{session_id}, Version ID: #{version_id}, Issue ID: #{issue_id}, Tokens: #{version.total_tokens}"
     version_id
   end
   
