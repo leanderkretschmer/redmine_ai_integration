@@ -54,8 +54,8 @@
 
 .ai-action-btn .icon {
   display: inline-block;
-  width: 18px; /* s18 Style */
-  height: 18px; /* s18 Style */
+  width: 11.5px !important;
+  height: 11.5px !important;
   background-repeat: no-repeat;
   background-position: center center;
   vertical-align: middle;
@@ -71,8 +71,6 @@
   background-image: url('../images/expand.png');
   background-size: contain;
   filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
-  width: 17px; /* 15% kleiner als 20px */
-  height: 17px;
 }
 
 /* Navigation Buttons (bestehend) */
