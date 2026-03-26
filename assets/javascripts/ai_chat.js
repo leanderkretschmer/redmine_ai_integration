@@ -39,7 +39,7 @@
         </div>
         <div class="ai-chat-messages" id="ai-chat-messages">
           <div class="ai-chat-welcome">
-            <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
+            <p>kein verlauf ...</p>
           </div>
         </div>
         
@@ -153,7 +153,7 @@
           const messagesContainer = document.getElementById('ai-chat-messages');
           messagesContainer.innerHTML = `
             <div class="ai-chat-welcome">
-              <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
+              <p>kein verlauf ...</p>
             </div>
           `;
         } else {

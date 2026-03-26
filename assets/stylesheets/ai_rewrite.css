@@ -2,19 +2,19 @@
 
 /* Container und Button-Gruppen */
 .ai-buttons-container {
-  margin-top: 0px; /* 3px unter dem Textfeld */
+  margin-top: 5px; 
   margin-bottom: 10px;
 }
 
 .ai-button-group {
   display: flex;
-  gap: 6px; /* Abstand zwischen den beiden Buttons etwas weniger */
+  gap: 12px; /* Spacing zwischen den Buttons wie in Redmine contextual */
   align-items: center;
   margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
-/* Neue AI-Buttons - Redmine Hyperlink Style */
+/* Neue AI-Buttons - Redmine Contextual Style */
 .ai-correction-button,
 .ai-complex-button {
   padding: 0;
@@ -25,18 +25,11 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 4px; /* Standard Redmine Gap zwischen Icon und Text */
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
   font-weight: normal;
   text-decoration: none;
-}
-
-.ai-correction-button {
-  gap: -10px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
-}
-
-.ai-complex-button {
-  gap: 2px;
 }
 
 .ai-correction-button:hover,
@@ -46,30 +39,13 @@
   text-decoration: underline;
 }
 
-.ai-correction-button:active,
-.ai-complex-button:active {
-  transform: none;
-}
-
-.ai-correction-button.disabled,
-.ai-complex-button.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: transparent;
-  color: #999;
-  text-decoration: none;
-}
-
 .ai-action-btn .icon {
   display: inline-block;
-  width: 16px; /* Vergrößert von 16px */
-  height: 16px; /* Vergrößert von 16px */
+  width: 18px; /* s18 Style */
+  height: 18px; /* s18 Style */
   background-repeat: no-repeat;
   background-position: center center;
   vertical-align: middle;
-  position: relative;
-  top: -1px; /* Etwas nach oben */
-  left: -2px; /* Etwas nach links */
 }
 
 .ai-action-btn .icon-magic-wand {
@@ -77,12 +53,12 @@
   background-size: contain;
 }
 
-.ai-action-btn .icon-expand {
-  background-image: url('../images/expand.png');
-  background-size: contain;
-  width: 16px; /* Leicht grösser um optisch gleich zu wirken */
-  height: 16px;
-  top: 0px; /* Korrektur der Position für das grössere Icon */
+.ai-complex-button .icon-svg {
+  flex-shrink: 0;
+}
+
+.ai-complex-button:hover .icon-svg {
+  fill: #c61a1a !important;
 }
 
 /* Navigation Buttons (bestehend) */
