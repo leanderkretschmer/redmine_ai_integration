@@ -25,19 +25,42 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px; /* Standard Redmine Gap zwischen Icon und Text */
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
   font-weight: normal;
   text-decoration: none;
+  gap: 0; /* Gap entfernt, wir nutzen Margins für Präzision */
 }
 
-.ai-correction-button {
-  gap: -10px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
+.ai-correction-button .btn-text,
+.ai-complex-button .btn-text {
+  margin-left: 2px; /* Minimaler Abstand zum Icon */
 }
 
-.ai-complex-button {
-  gap: -13px; /* 15px näher an das Logo (vorher 2px) */
+.ai-action-btn .icon {
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-position: center center;
+  vertical-align: middle;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ai-action-btn .icon-magic-wand {
+  background-image: url('../images/magic-wand.png');
+  background-size: contain;
+  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
+  width: 13px !important;
+  height: 13px !important;
+}
+
+.ai-action-btn .icon-expand {
+  background-image: url('../images/expand.png');
+  background-size: contain;
+  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
+  width: 11.5px !important;
+  height: 11.5px !important;
 }
 
 .ai-correction-button:hover,
@@ -50,27 +73,6 @@
 .ai-correction-button:hover .icon-magic-wand,
 .ai-complex-button:hover .icon-expand {
   filter: invert(16%) sepia(99%) saturate(3022%) hue-rotate(346deg) brightness(84%) contrast(106%); /* Redmine Hover Rot */
-}
-
-.ai-action-btn .icon {
-  display: inline-block;
-  width: 11.5px !important;
-  height: 11.5px !important;
-  background-repeat: no-repeat;
-  background-position: center center;
-  vertical-align: middle;
-}
-
-.ai-action-btn .icon-magic-wand {
-  background-image: url('../images/magic-wand.png');
-  background-size: contain;
-  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
-}
-
-.ai-action-btn .icon-expand {
-  background-image: url('../images/expand.png');
-  background-size: contain;
-  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
 }
 
 /* Navigation Buttons (bestehend) */
