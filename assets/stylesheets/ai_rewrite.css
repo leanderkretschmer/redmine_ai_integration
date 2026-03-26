@@ -33,15 +33,11 @@
 }
 
 .ai-correction-button {
-  gap: 4px;
-}
-
-.ai-correction-button .btn-text {
-  margin-left: -10px; /* Text 10px weiter links rücken */
+  gap: -10px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
 }
 
 .ai-complex-button {
-  gap: 4px;
+  gap: -13px; /* 15px näher an das Logo (vorher 2px) */
 }
 
 .ai-correction-button:hover,
@@ -75,6 +71,8 @@
   background-image: url('../images/expand.png');
   background-size: contain;
   filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
+  width: 17px; /* 15% kleiner als 20px */
+  height: 17px;
 }
 
 /* Navigation Buttons (bestehend) */

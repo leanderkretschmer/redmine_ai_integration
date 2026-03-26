@@ -132,15 +132,9 @@
       return;
     }
 
-    // Hole Slim Response Setting
+    // Hole Embedded System Prompt Setting
     const settings = window.redmineAISettings || {};
-    const isSlimResponse = settings.slim_response === '1';
-    
-    let systemPrompt = 'Analysiere den bereitgestellten Text. Falls der Text am Anfang eine klare Anweisung enthält (z. B. "korrigiere...", "fasse zusammen...", "übersetze..."), führe diese Anweisung für den restlichen Teil des Textes aus. Falls keine klare Anweisung am Anfang steht, führe eine allgemeine Korrektur von Rechtschreibung, Grammatik und Stil durch. Behalte den ursprünglichen Sinn bei.';
-    
-    if (isSlimResponse) {
-      systemPrompt += ' Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.';
-    }
+    const systemPrompt = settings.embedded_system_prompt || 'Rolle: Du bist ein professioneller Lektor. Korrigiere den Text.';
 
     handleAIRequest(textarea, correctionButton, prevButton, nextButton, originalText, systemPrompt, 'correction');
   }
@@ -162,7 +156,11 @@
       return;
     }
 
-    const systemPrompt = `Führe folgende Anweisung aus: "${userInstruction}". Falls der Text am Anfang eine weitere klare Anweisung enthält, kombiniere beide Anweisungen. Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.`;
+    // Hole Embedded System Prompt Setting
+    const settings = window.redmineAISettings || {};
+    const basePrompt = settings.embedded_system_prompt || 'Rolle: Du bist ein professioneller Lektor. Korrigiere den Text.';
+    
+    const systemPrompt = `Anweisung des Benutzers: "${userInstruction}"\n\n${basePrompt}`;
     
     handleAIRequest(textarea, complexButton, prevButton, nextButton, originalText, systemPrompt, 'complex');
     
