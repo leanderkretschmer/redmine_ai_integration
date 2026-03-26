@@ -91,28 +91,24 @@ class AiChatController < ApplicationController
   
   def build_chat_system_prompt(issue, context)
     settings = Setting.plugin_redmine_ai_integration
-    custom_prompt = settings['system_prompt'] || ''
+    chat_prompt = settings['chat_system_prompt']
     
     user_name = User.current.name
     
-    base_prompt = <<~PROMPT
-      Du bist ein hilfreicher Assistent für Redmine-Tickets. Analysiere das folgende Ticket und beantworte Fragen basierend auf den vorhandenen Informationen.
-      
-      WICHTIG:
-      - Du sprichst mit dem Benutzer "#{user_name}". Wenn es um Kommentare oder Aktionen von "#{user_name}" geht, sprich ihn direkt mit "Du" an (z.B. "Du hast in Kommentar #2 gesagt...").
-      - Fasse dich immer kurz und nenne nur die wichtigsten Eckpunkte, es sei denn, der Benutzer bittet ausdrücklich um mehr Details oder Kontext.
-      - Verwende für Verweise auf Kommentare das Format "Kommentar #X" oder "#X" (z.B. "#35")
-      - Wenn du Informationen aus einem bestimmten Kommentar nennst, erwähne die Kommentar-Nummer
-      - Beantworte nur basierend auf den vorhandenen Daten im Ticket
-      - Wenn Informationen fehlen, sage das klar
-      - Halte Antworten präzise und relevant
+    # Falls der Prompt Platzhalter für User-Info enthält oder wir sie erzwingen wollen:
+    system_instruction = <<~PROMPT
+      Du bist ein hilfreicher Assistent für Redmine-Tickets.
+      Aktueller Benutzer: #{user_name}
+      WICHTIG: Sprich den Benutzer "#{user_name}" direkt mit "Du" an, wenn es um seine eigenen Kommentare oder Aktionen geht.
       
       Ticket-Kontext:
       #{context}
+      
+      Anweisung:
+      #{chat_prompt}
     PROMPT
     
-    base_prompt + "\n\n#{custom_prompt}" if custom_prompt.present?
-    base_prompt
+    system_instruction
   end
   
   def call_ai_for_chat(question, system_prompt, provider, settings)

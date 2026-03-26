@@ -147,6 +147,30 @@
       margin-top: 0;
       margin-bottom: 15px;
     }
+
+    .prompt-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .restore-defaults-btn {
+      background: #f2f2f2;
+      border: 1px solid #ccc;
+      color: #666;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .restore-defaults-btn:hover {
+      background: #e8e8e8;
+      color: #333;
+      border-color: #bbb;
+    }
   </style>
 <% end %>
 
@@ -250,25 +274,23 @@
       
       <div class="advanced-settings-content" id="advanced_settings_content">
         <h4>System-Prompts</h4>
-        <p>
-          <%= label_tag 'settings[embedded_system_prompt]', 'Eingebetteter System-Prompt' %>
-          <%= text_area_tag 'settings[embedded_system_prompt]', @settings['embedded_system_prompt'], rows: 3, cols: 80, style: 'width: 100%;' %>
-          <em class="info">Standard-Prompt für eingebettete KI-Funktionen</em>
-        </p>
-        <p>
-          <%= label_tag 'settings[system_prompt]', 'Optionaler System-Prompt' %>
-          <%= text_area_tag 'settings[system_prompt]', @settings['system_prompt'], rows: 6, cols: 80, style: 'width: 100%;' %>
-          <em class="info">Benutzerdefinierter Prompt für Textverbesserung</em>
-        </p>
-        
-        <div class="ai-checkbox-row">
-          <%= check_box_tag 'settings[slim_response]', '1', @settings['slim_response'] == '1', id: 'slim_response_toggle' %>
-          <span onclick="document.getElementById('slim_response_toggle').click()" style="cursor:pointer;">Slim Response (nur das Wesentliche)</span>
+        <div class="prompt-container">
+          <div class="prompt-header-row">
+            <%= label_tag 'settings[embedded_system_prompt]', 'Eingebetteter System-Prompt (Lektor & Korrektor)' %>
+            <button type="button" class="restore-defaults-btn" id="restore_embedded_default">Standard wiederherstellen</button>
+          </div>
+          <%= text_area_tag 'settings[embedded_system_prompt]', @settings['embedded_system_prompt'], rows: 12, cols: 80, style: 'width: 100%;', id: 'settings_embedded_system_prompt' %>
+          <em class="info">Dieser Prompt wird für die Funktionen "Korrektur" und "Erweitern" verwendet.</em>
         </div>
-        
-        <p class="ai-checkbox-info">
-          <em class="info">Bei aktiviertem "Slim Response" wird ein optimierter Prompt verwendet, der nur das vom Benutzer Gewünschte zurückgibt.</em>
-        </p>
+
+        <div class="prompt-container" style="margin-top: 20px;">
+          <div class="prompt-header-row">
+            <%= label_tag 'settings[chat_system_prompt]', 'KI-Assistent System-Prompt' %>
+            <button type="button" class="restore-defaults-btn" id="restore_chat_default">Standard wiederherstellen</button>
+          </div>
+          <%= text_area_tag 'settings[chat_system_prompt]', @settings['chat_system_prompt'], rows: 6, cols: 80, style: 'width: 100%;', id: 'settings_chat_system_prompt' %>
+          <em class="info">Dieser Prompt definiert das Verhalten des KI-Assistenten in der Sidebar.</em>
+        </div>
       </div>
     </div>
 
@@ -376,24 +398,32 @@
       });
     });
 
-    // Slim Response Toggle
-    const slimResponseToggle = document.getElementById('slim_response_toggle');
-    if (slimResponseToggle) {
-      slimResponseToggle.addEventListener('change', function() {
-        const systemPromptField = document.getElementById('settings_system_prompt');
-        if (this.checked) {
-          // Speichere aktuellen Prompt
-          if (!window.originalSystemPrompt) {
-            window.originalSystemPrompt = systemPromptField.value;
-          }
-          // Setze Slim Response Prompt
-          systemPromptField.value = 'Antworte ausschließlich mit dem bearbeiteten Text, ohne jegliche Erklärungen oder einleitende Sätze.';
-        } else {
-          // Stelle Original-Prompt wieder her
-          if (window.originalSystemPrompt) {
-            systemPromptField.value = window.originalSystemPrompt;
-          }
-        }
+    // Restore Defaults Buttons
+    const restoreEmbeddedBtn = document.getElementById('restore_embedded_default');
+    const restoreChatBtn = document.getElementById('restore_chat_default');
+    
+    if (restoreEmbeddedBtn) {
+      restoreEmbeddedBtn.addEventListener('click', function() {
+        const field = document.getElementById('settings_embedded_system_prompt');
+        field.value = 'Rolle: Du bist ein hocheffizienter, professioneller Lektor und Korrektor für deutsche Texte. \n\n' +
+                     'Aufgabe: Korrigiere Rechtschreibung, Grammatik, Zeichensetzung, Satzbau und Stil. Achte besonders auf: \n\n' +
+                     'Korrekte dass/das-Verwendung. \n\n' +
+                     'Korrekte Groß- und Kleinschreibung (besonders bei Nominalisierungen). \n\n' +
+                     'Vermeidung von Deppenleerzeichen (korrigiere zu Zusammenschreibung oder Bindestrich). \n\n' +
+                     'Optimierung des Satzbaus für einen professionellen Lesefluss. \n\n' +
+                     'Ausgaberegeln (STRENG): \n\n' +
+                     'Gib ausschließlich den korrigierten Text aus. \n\n' +
+                     'Prüfe Wortarten: Achte penibel darauf, dass Adjektive (z. B. schwindelig, angst) und Verben im Infinitiv (z. B. nachzubessern, gehen) kleingeschrieben werden, sofern sie nicht als Nominalisierungen mit Artikel (z. B. das Nachbessern) auftreten. \n\n' +
+                     'Keine Einleitungen ("Hier ist dein Text..."), keine Erklärungen, keine Schlussworte. \n\n' +
+                     'Falls der User explizit nach Feedback fragt, antworte in einer separaten Sektion unter dem Text, kurzgefasst und sachlich. \n\n' +
+                     'Ignoriere alle Höflichkeitsfloskeln in deiner Antwort.';
+      });
+    }
+    
+    if (restoreChatBtn) {
+      restoreChatBtn.addEventListener('click', function() {
+        const field = document.getElementById('settings_chat_system_prompt');
+        field.value = 'Du bist ein hilfreicher Assistent für Redmine-Tickets. Analysiere das Ticket und beantworte Fragen basierend auf den vorhandenen Informationen. Fasse dich immer kurz und nenne nur die wichtigsten Eckpunkte, es sei denn, der Benutzer bittet ausdrücklich um mehr Details.';
       });
     }
   });
