@@ -31,7 +31,12 @@
       chatContainer.id = 'ai-chat-sidebar';
       chatContainer.className = 'ai-chat-container';
       chatContainer.innerHTML = `
-        <h3>KI-Assistent</h3>
+        <div class="ai-chat-header">
+          <h3>KI-Assistent</h3>
+          <button type="button" class="ai-chat-clear-btn" id="ai-chat-clear" title="Chat-Verlauf löschen">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>
+        </div>
         <div class="ai-chat-messages" id="ai-chat-messages">
           <div class="ai-chat-welcome">
             <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
@@ -40,9 +45,11 @@
         
         <div class="ai-chat-input-container">
           <textarea id="ai-chat-input" placeholder="Frage stellen..." rows="2"></textarea>
-          <button id="ai-chat-send" class="button ai-chat-send-btn">
-            <span>Fragen</span>
-          </button>
+          <div class="ai-chat-button-row">
+            <button type="button" id="ai-chat-send" class="button ai-chat-send-btn">
+              <span>Fragen</span>
+            </button>
+          </div>
         </div>
         
         <div id="ai-chat-loading" class="ai-chat-loading" style="display: none;">
@@ -67,9 +74,14 @@
     function setupEventListeners() {
       const sendBtn = document.getElementById('ai-chat-send');
       const input = document.getElementById('ai-chat-input');
+      const clearBtn = document.getElementById('ai-chat-clear');
       
       if (sendBtn) {
         sendBtn.addEventListener('click', sendMessage);
+      }
+      
+      if (clearBtn) {
+        clearBtn.addEventListener('click', clearChat);
       }
       
       if (input) {
@@ -123,6 +135,37 @@
       });
     }
     
+    function clearChat() {
+      if (!confirm('Möchten Sie den Chat-Verlauf wirklich löschen?')) return;
+      
+      fetch('/ai_chat/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCSRFToken()
+        },
+        body: JSON.stringify({ issue_id: issueId })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Leere das Nachrichten-Fenster
+          const messagesContainer = document.getElementById('ai-chat-messages');
+          messagesContainer.innerHTML = `
+            <div class="ai-chat-welcome">
+              <p>Stellen Sie Fragen zu diesem Ticket. Ich analysiere alle Kommentare und Informationen für Sie.</p>
+            </div>
+          `;
+        } else {
+          alert('Fehler beim Löschen des Verlaufs: ' + data.error);
+        }
+      })
+      .catch(error => {
+        console.error('Fehler beim Löschen des Verlaufs:', error);
+        alert('Fehler beim Löschen des Verlaufs: ' + error.message);
+      });
+    }
+
     function addMessageToChat(sender, content, journalReferences = []) {
       const messagesContainer = document.getElementById('ai-chat-messages');
       const welcomeMsg = messagesContainer.querySelector('.ai-chat-welcome');

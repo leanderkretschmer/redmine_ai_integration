@@ -58,7 +58,8 @@ class AiChatController < ApplicationController
     issue_id = params[:issue_id]
     return render json: { messages: [] } if issue_id.blank?
     
-    messages = AiChatMessage.for_issue(issue_id).includes(:user, :journal_referenced)
+    # Filtere nach Issue und aktuellem User für benutzerspezifischen Chat-Verlauf
+    messages = AiChatMessage.for_issue(issue_id).where(user_id: User.current.id).includes(:user, :journal_referenced)
     
     render json: {
       messages: messages.map do |msg|
@@ -92,10 +93,14 @@ class AiChatController < ApplicationController
     settings = Setting.plugin_redmine_ai_integration
     custom_prompt = settings['system_prompt'] || ''
     
+    user_name = User.current.name
+    
     base_prompt = <<~PROMPT
       Du bist ein hilfreicher Assistent für Redmine-Tickets. Analysiere das folgende Ticket und beantworte Fragen basierend auf den vorhandenen Informationen.
       
       WICHTIG:
+      - Du sprichst mit dem Benutzer "#{user_name}". Wenn es um Kommentare oder Aktionen von "#{user_name}" geht, sprich ihn direkt mit "Du" an (z.B. "Du hast in Kommentar #2 gesagt...").
+      - Fasse dich immer kurz und nenne nur die wichtigsten Eckpunkte, es sei denn, der Benutzer bittet ausdrücklich um mehr Details oder Kontext.
       - Verwende für Verweise auf Kommentare das Format "Kommentar #X" oder "#X" (z.B. "#35")
       - Wenn du Informationen aus einem bestimmten Kommentar nennst, erwähne die Kommentar-Nummer
       - Beantworte nur basierend auf den vorhandenen Daten im Ticket
