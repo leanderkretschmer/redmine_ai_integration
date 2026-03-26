@@ -2,7 +2,7 @@
 
 /* Container und Button-Gruppen */
 .ai-buttons-container {
-  margin-top: 1px; /* 3px unter dem Textfeld */
+  margin-top: 0px; /* 3px unter dem Textfeld */
   margin-bottom: 10px;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .ai-correction-button {
-  gap: -5px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
+  gap: -10px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
 }
 
 .ai-complex-button {
@@ -62,8 +62,8 @@
 
 .ai-action-btn .icon {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 16px; /* Vergrößert von 16px */
+  height: 16px; /* Vergrößert von 16px */
   background-repeat: no-repeat;
   background-position: center center;
   vertical-align: middle;
@@ -80,6 +80,9 @@
 .ai-action-btn .icon-expand {
   background-image: url('../images/expand.png');
   background-size: contain;
+  width: 16px; /* Leicht grösser um optisch gleich zu wirken */
+  height: 16px;
+  top: 0px; /* Korrektur der Position für das grössere Icon */
 }
 
 /* Navigation Buttons (bestehend) */
