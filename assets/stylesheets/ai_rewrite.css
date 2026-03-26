@@ -8,7 +8,7 @@
 
 .ai-button-group {
   display: flex;
-  gap: 10px;
+  gap: 6px; /* Abstand zwischen den beiden Buttons etwas weniger */
   align-items: center;
   margin-bottom: 10px;
   flex-wrap: wrap;
@@ -32,7 +32,7 @@
 }
 
 .ai-correction-button {
-  gap: -3px; /* 5px näher als vorherige 2px */
+  gap: -5px; /* Abstand zwischen Korrektur Text und Icon ein bisschen weniger */
 }
 
 .ai-complex-button {
@@ -77,18 +77,9 @@
   background-size: contain;
 }
 
-.ai-action-btn .icon-edit-svg {
-  width: 20px; /* 10% grösser als 18px */
-  height: 20px; /* 10% grösser als 18px */
-  fill: #169;
-  vertical-align: middle;
-  position: relative;
-  top: -1px; /* Etwas nach oben */
-  left: -2px; /* Etwas nach links */
-}
-
-.ai-complex-button:hover .icon-edit-svg {
-  fill: #c61a1a;
+.ai-action-btn .icon-expand {
+  background-image: url('../images/expand.png');
+  background-size: contain;
 }
 
 /* Navigation Buttons (bestehend) */

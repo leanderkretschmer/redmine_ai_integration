@@ -51,7 +51,7 @@
     const complexButton = document.createElement('a');
     complexButton.href = 'javascript:void(0)';
     complexButton.className = 'ai-action-btn ai-complex-button';
-    complexButton.innerHTML = '<svg class="icon icon-edit-svg"><use xlink:href="/assets/icons-35b4b65e.svg#icon--edit"></use></svg><span class="btn-text">Erweitern</span>';
+    complexButton.innerHTML = '<span class="icon icon-expand"></span><span class="btn-text">Erweitern</span>';
     complexButton.title = 'Komplexe Anfrage mit zusätzlicher Anweisung';
 
     // Navigation Buttons (wie vorher)
