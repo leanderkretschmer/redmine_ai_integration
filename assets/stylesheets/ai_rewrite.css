@@ -25,11 +25,18 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 2px; /* Text näher an die Icons */
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
   font-weight: normal;
   text-decoration: none;
+}
+
+.ai-correction-button {
+  gap: -3px; /* 5px näher als vorherige 2px */
+}
+
+.ai-complex-button {
+  gap: 2px;
 }
 
 .ai-correction-button:hover,
@@ -71,8 +78,8 @@
 }
 
 .ai-action-btn .icon-edit-svg {
-  width: 18px; /* Größer skaliert */
-  height: 18px; /* Größer skaliert */
+  width: 20px; /* 10% grösser als 18px */
+  height: 20px; /* 10% grösser als 18px */
   fill: #169;
   vertical-align: middle;
   position: relative;
