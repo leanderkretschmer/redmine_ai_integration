@@ -25,7 +25,7 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px; /* Text näher an die Icons */
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
   font-weight: normal;
@@ -60,6 +60,9 @@
   background-repeat: no-repeat;
   background-position: center center;
   vertical-align: middle;
+  position: relative;
+  top: -1px; /* Etwas nach oben */
+  left: -2px; /* Etwas nach links */
 }
 
 .ai-action-btn .icon-magic-wand {
@@ -68,10 +71,13 @@
 }
 
 .ai-action-btn .icon-edit-svg {
-  width: 16px;
-  height: 16px;
+  width: 18px; /* Größer skaliert */
+  height: 18px; /* Größer skaliert */
   fill: #169;
   vertical-align: middle;
+  position: relative;
+  top: -1px; /* Etwas nach oben */
+  left: -2px; /* Etwas nach links */
 }
 
 .ai-complex-button:hover .icon-edit-svg {

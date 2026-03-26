@@ -124,7 +124,7 @@
 
 .ai-chat-send-btn {
   width: 100%;
-  padding: 8px 20px;
+  padding: 13px 20px; /* 5px nach unten vergrößert (8px + 5px) */
   background: #2996cc;
   color: white;
   border: 1px solid #2482b3;
@@ -133,6 +133,9 @@
   font-size: 13px;
   font-weight: bold;
   transition: all 0.2s;
+  display: flex; /* Zentrierung */
+  align-items: center; /* Zentrierung */
+  justify-content: center; /* Zentrierung */
 }
 
 .ai-chat-send-btn:hover {
