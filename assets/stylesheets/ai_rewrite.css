@@ -8,7 +8,7 @@
 
 .ai-button-group {
   display: flex;
-  gap: 12px; /* Spacing zwischen den Buttons wie in Redmine contextual */
+  gap: 8px; /* Abstand zwischen den Buttons verringert */
   align-items: center;
   margin-bottom: 10px;
   flex-wrap: wrap;
@@ -32,11 +32,28 @@
   text-decoration: none;
 }
 
+.ai-correction-button {
+  gap: 4px;
+}
+
+.ai-correction-button .btn-text {
+  margin-left: -10px; /* Text 10px weiter links rücken */
+}
+
+.ai-complex-button {
+  gap: 4px;
+}
+
 .ai-correction-button:hover,
 .ai-complex-button:hover {
   background: transparent;
   color: #c61a1a;
   text-decoration: underline;
+}
+
+.ai-correction-button:hover .icon-magic-wand,
+.ai-complex-button:hover .icon-expand {
+  filter: invert(16%) sepia(99%) saturate(3022%) hue-rotate(346deg) brightness(84%) contrast(106%); /* Redmine Hover Rot */
 }
 
 .ai-action-btn .icon {
@@ -51,14 +68,13 @@
 .ai-action-btn .icon-magic-wand {
   background-image: url('../images/magic-wand.png');
   background-size: contain;
+  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
 }
 
-.ai-complex-button .icon-svg {
-  flex-shrink: 0;
-}
-
-.ai-complex-button:hover .icon-svg {
-  fill: #c61a1a !important;
+.ai-action-btn .icon-expand {
+  background-image: url('../images/expand.png');
+  background-size: contain;
+  filter: invert(31%) sepia(94%) saturate(1352%) hue-rotate(176deg) brightness(92%) contrast(91%); /* Redmine Blau #169 */
 }
 
 /* Navigation Buttons (bestehend) */
