@@ -178,6 +178,41 @@ class AiRewriteController < ApplicationController
     
     render json: result
   end
+
+  def pull_ollama_model
+    model_name = params[:model_name]
+    return render json: { success: false, error: 'Modellname fehlt' }, status: 400 if model_name.blank?
+    
+    settings = Setting.plugin_redmine_ai_integration
+    url = settings['ollama_url']
+    return render json: { success: false, error: 'Ollama URL nicht konfiguriert' }, status: 400 if url.blank?
+    
+    require 'net/http'
+    require 'json'
+    
+    url = url.chomp('/')
+    uri = URI("#{url}/api/pull")
+    
+    begin
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = url.start_with?('https://')
+      http.read_timeout = 300 # Langer Timeout für Pulls
+      
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request.body = { name: model_name, stream: false }.to_json
+      
+      response = http.request(request)
+      
+      if response.code == '200'
+        render json: { success: true, message: "Modell #{model_name} wurde erfolgreich geladen." }
+      else
+        render json: { success: false, error: "Fehler beim Laden: #{response.code} - #{response.body}" }
+      end
+    rescue => e
+      render json: { success: false, error: "Verbindungsfehler: #{e.message}" }
+    end
+  end
   
   def requests
     @versions = AiTextVersion.recent.limit(50)

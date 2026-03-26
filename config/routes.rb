@@ -6,6 +6,7 @@ get 'ai_rewrite/list_versions', to: 'ai_rewrite#list_versions'
 get 'ai_rewrite/settings', to: 'ai_rewrite#settings'
 delete 'ai_rewrite/clear_versions', to: 'ai_rewrite#clear_versions'
 post 'ai_rewrite/test_connection', to: 'ai_rewrite#test_connection'
+post 'ai_rewrite/pull_ollama_model', to: 'ai_rewrite#pull_ollama_model'
 get 'ai_rewrite/requests', to: 'ai_rewrite#requests'
 get 'ai_rewrite/check_versions', to: 'ai_rewrite#check_versions'
 

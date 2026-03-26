@@ -90,13 +90,19 @@
   margin-bottom: 0;
 }
 
-.ai-chat-content ul, .ai-chat-content ol {
-  margin: 5px 0 10px 20px;
-  padding: 0;
+.ai-chat-content ul {
+  list-style-type: disc !important;
+  margin-left: 1.5em !important;
+}
+
+.ai-chat-content ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5em !important;
 }
 
 .ai-chat-content li {
-  margin-bottom: 3px;
+  margin-bottom: 5px;
+  display: list-item !important;
 }
 
 .ai-chat-content strong {

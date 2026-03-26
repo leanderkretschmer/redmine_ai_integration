@@ -181,8 +181,32 @@
       contentDiv.className = 'ai-chat-content';
       
       // Nutze Markdown-Parser für AI-Antworten
-      if (sender === 'ai' && typeof marked !== 'undefined') {
-        contentDiv.innerHTML = marked.parse(content);
+      if (sender === 'ai') {
+        // Suche nach marked in verschiedenen möglichen Orten
+        let markedLib = window.marked || (typeof marked !== 'undefined' ? marked : null);
+        
+        // In neueren Versionen ist es ein Objekt mit einer .parse Methode
+        let markedParser = null;
+        if (markedLib) {
+          if (typeof markedLib.parse === 'function') {
+            markedParser = markedLib.parse.bind(markedLib);
+          } else if (typeof markedLib === 'function') {
+            markedParser = markedLib;
+          }
+        }
+        
+        if (markedParser) {
+          try {
+            // Konfiguration für marked (gfm: true, breaks: true)
+            contentDiv.innerHTML = markedParser(content, { gfm: true, breaks: true });
+          } catch (e) {
+            console.error('Error parsing markdown:', e);
+            contentDiv.innerHTML = content;
+          }
+        } else {
+          console.warn('marked.js not found or invalid, rendering as plain text');
+          contentDiv.textContent = content;
+        }
       } else {
         contentDiv.textContent = content;
       }

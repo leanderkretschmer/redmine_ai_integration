@@ -195,6 +195,49 @@
       color: #333;
       border-color: #bbb;
     }
+    
+    .recommendation-info {
+      margin-top: 10px;
+      padding: 10px;
+      background: #eef7fd;
+      border: 1px solid #d0e8f8;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .recommended-models-list {
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .pull-model-btn {
+      background: #4caf50;
+      color: white;
+      border: 1px solid #388e3c;
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .pull-model-btn:hover {
+      background: #388e3c;
+    }
+    
+    .pull-model-btn:disabled {
+      background: #ccc;
+      border-color: #bbb;
+      cursor: wait;
+    }
+
+    .thinking-info {
+      color: #666;
+      font-style: italic;
+      font-size: 11px;
+      margin-left: 5px;
+    }
+
     .advanced-settings-content h4 {
       margin-left: 230px;
     }
@@ -247,10 +290,22 @@
         <div class="model-selection-group">
           <%= text_field_tag 'settings[ollama_model]', @settings['ollama_model'] || 'llama2', size: 40, id: 'ollama_model_input' %>
           <button type="button" id="ollama_load_models" class="load-models-btn">Modelle laden</button>
+          <button type="button" id="ollama_recommend_btn" class="load-models-btn" style="background-color: #2996cc; border-color: #2482b3;">Use Recommended Model</button>
           <select id="ollama_model_select" style="display:none;"></select>
         </div>
         <em class="info">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
       </p>
+      
+      <div id="ollama_recommendation_info" class="recommendation-info"></div>
+      <div id="ollama_recommended_models" class="recommended-models-list">
+        <strong>Empfohlene Modelle (nicht gefunden):</strong>
+        <ul id="recommended_models_ul" style="margin-top: 10px; margin-left: 20px;">
+          <li>glm4 <button type="button" class="pull-model-btn" onclick="pullOllamaModel('glm4')">ollama pull glm4</button></li>
+          <li>gemma2 <button type="button" class="pull-model-btn" onclick="pullOllamaModel('gemma2')">ollama pull gemma2</button></li>
+          <li>qwen2.5 <span class="thinking-info">(Thinking/Reasoning Modell)</span> <button type="button" class="pull-model-btn" onclick="pullOllamaModel('qwen2.5')">ollama pull qwen2.5</button></li>
+          <li>mistral <button type="button" class="pull-model-btn" onclick="pullOllamaModel('mistral')">ollama pull mistral</button></li>
+        </ul>
+      </div>
       
       <div class="ai-checkbox-row">
         <%= check_box_tag 'settings[ollama_streaming]', '1', @settings['ollama_streaming'] == '1', id: 'ollama_streaming_toggle' %>
@@ -461,7 +516,104 @@
                      'Ziel: Biete dem User die schnellstmögliche Antwort, ohne dass er das gesamte Ticket selbst lesen muss.';
       });
     }
+
+    // Ollama Recommendation Logic
+    const ollamaRecommendBtn = document.getElementById('ollama_recommend_btn');
+    if (ollamaRecommendBtn) {
+      ollamaRecommendBtn.addEventListener('click', function() {
+        this.disabled = true;
+        this.textContent = 'Suche...';
+        
+        const recommendationInfo = document.getElementById('ollama_recommendation_info');
+        const recommendedList = document.getElementById('ollama_recommended_models');
+        recommendationInfo.style.display = 'none';
+        recommendedList.style.display = 'none';
+
+        fetch('/ai_rewrite/test_connection', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+          },
+          body: JSON.stringify({ provider: 'ollama' })
+        })
+        .then(response => response.json())
+        .then(data => {
+          this.disabled = false;
+          this.textContent = 'Use Recommended Model';
+          
+          if (data.success && data.models) {
+            const models = data.models.map(m => m.split(':')[0].toLowerCase());
+            const input = document.getElementById('ollama_model_input');
+            
+            let found = null;
+            let info = '';
+            
+            if (models.includes('glm4')) {
+              found = 'glm4';
+            } else if (models.includes('gemma2')) {
+              found = 'gemma2';
+            } else if (models.includes('qwen2.5')) {
+              found = 'qwen2.5';
+              info = ' (Reasoning Modell aktiviert)';
+            } else if (models.includes('mistral')) {
+              found = 'mistral';
+            }
+            
+            if (found) {
+              input.value = found;
+              recommendationInfo.innerHTML = '<strong style="color: green;">Empfehlung:</strong> ' + found + ' wurde gefunden und ausgewählt.' + info;
+              recommendationInfo.style.display = 'block';
+            } else {
+              recommendationInfo.innerHTML = '<strong style="color: orange;">Info:</strong> Keines der empfohlenen Modelle wurde gefunden. Bitte laden Sie eines der folgenden Modelle herunter:';
+              recommendationInfo.style.display = 'block';
+              recommendedList.style.display = 'block';
+            }
+          } else {
+            alert('Konnte Verbindung zu Ollama nicht herstellen.');
+          }
+        })
+        .catch(error => {
+          this.disabled = false;
+          this.textContent = 'Use Recommended Model';
+          alert('Fehler: ' + error.message);
+        });
+      });
+    }
   });
+
+  function pullOllamaModel(modelName) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Lädt (kann dauern)...';
+    
+    fetch('/ai_rewrite/pull_ollama_model', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({ model_name: modelName })
+    })
+    .then(response => response.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      
+      if (data.success) {
+        alert(data.message);
+        document.getElementById('ollama_model_input').value = modelName;
+      } else {
+        alert('Fehler: ' + data.error);
+      }
+    })
+    .catch(error => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      alert('Fehler beim Laden des Modells: ' + error.message);
+    });
+  }
 
   function loadModelsForProvider(provider) {
     const button = document.getElementById(provider + '_load_models');
