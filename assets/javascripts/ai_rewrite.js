@@ -41,17 +41,17 @@
     buttonGroup.className = 'ai-button-group';
 
     // Korrektur Button (neu)
-    const correctionButton = document.createElement('button');
-    correctionButton.type = 'button';
-    correctionButton.className = 'ai-correction-button button';
-    correctionButton.innerHTML = 'Korrektur';
+    const correctionButton = document.createElement('a');
+    correctionButton.href = 'javascript:void(0)';
+    correctionButton.className = 'ai-action-btn ai-correction-button';
+    correctionButton.innerHTML = '<span class="icon icon-reorder"></span><span class="btn-text">Korrektur</span>';
     correctionButton.title = 'Automatische Korrektur oder Ausführung von Anweisungen im Text';
 
     // Komplexe Anfrage Button (neu)
-    const complexButton = document.createElement('button');
-    complexButton.type = 'button';
-    complexButton.className = 'ai-complex-button button';
-    complexButton.innerHTML = 'Erweitern';
+    const complexButton = document.createElement('a');
+    complexButton.href = 'javascript:void(0)';
+    complexButton.className = 'ai-action-btn ai-complex-button';
+    complexButton.innerHTML = '<span class="icon icon-edit"></span><span class="btn-text">Erweitern</span>';
     complexButton.title = 'Komplexe Anfrage mit zusätzlicher Anweisung';
 
     // Navigation Buttons (wie vorher)
@@ -193,7 +193,6 @@
 
     // Button-Status setzen
     setButtonLoading(button, true);
-    button.disabled = true;
 
     handleStandardRequest(textarea, button, prevButton, nextButton, originalText, systemPrompt, sessionData, fieldType, issueId, journalId, provider, requestType);
   }
@@ -227,7 +226,6 @@
     })
     .then(data => {
       setButtonLoading(button, false);
-      button.disabled = false;
 
       console.log('AI Rewrite Response:', data);
 
@@ -290,7 +288,6 @@
     })
     .catch(error => {
       setButtonLoading(button, false);
-      button.disabled = false;
       console.error('Fehler bei der KI-Anfrage:', error);
       alert('Fehler bei der KI-Anfrage: ' + error.message);
     });
@@ -314,15 +311,20 @@
 
   // Button-Loading Status setzen
   function setButtonLoading(button, loading) {
+    const textSpan = button.querySelector('.btn-text');
     if (loading) {
-      button.disabled = true;
-      button.setAttribute('data-original-text', button.innerHTML);
-      button.textContent = 'Lädt...';
+      button.classList.add('disabled');
+      button.style.pointerEvents = 'none';
+      if (textSpan) {
+        button.setAttribute('data-original-text', textSpan.textContent);
+        textSpan.textContent = 'Lädt...';
+      }
     } else {
-      button.disabled = false;
+      button.classList.remove('disabled');
+      button.style.pointerEvents = 'auto';
       const originalText = button.getAttribute('data-original-text');
-      if (originalText) {
-        button.innerHTML = originalText;
+      if (originalText && textSpan) {
+        textSpan.textContent = originalText;
         button.removeAttribute('data-original-text');
       }
     }

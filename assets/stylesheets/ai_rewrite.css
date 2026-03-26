@@ -14,43 +14,60 @@
   flex-wrap: wrap;
 }
 
-/* Neue AI-Buttons - Circle Theme Style */
+/* Neue AI-Buttons - Redmine Hyperlink Style */
 .ai-correction-button,
 .ai-complex-button {
-  padding: 6px 14px;
+  padding: 0;
   font-size: 13px;
-  border: 1px solid #2482b3;
-  border-radius: 4px; /* Circle Theme Style */
-  background: #2996cc; /* Circle Theme Blue */
-  color: white;
+  border: none;
+  background: transparent;
+  color: #169;
   cursor: pointer;
-  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   white-space: nowrap;
   font-family: Verdana, Arial, sans-serif;
-  font-weight: bold;
+  font-weight: normal;
+  text-decoration: none;
 }
 
 .ai-correction-button:hover,
 .ai-complex-button:hover {
-  background: #1e7099;
-  border-color: #1a6285;
-  color: white;
+  background: transparent;
+  color: #c61a1a;
+  text-decoration: underline;
 }
 
 .ai-correction-button:active,
 .ai-complex-button:active {
-  transform: translateY(1px);
+  transform: none;
 }
 
-.ai-correction-button:disabled,
-.ai-complex-button:disabled {
+.ai-correction-button.disabled,
+.ai-complex-button.disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: #ccc;
-  transform: none;
+  background: transparent;
+  color: #999;
+  text-decoration: none;
+}
+
+.ai-action-btn .icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center center;
+  vertical-align: middle;
+}
+
+.ai-action-btn .icon-reorder {
+  background-image: url('../../../images/reorder.png');
+}
+
+.ai-action-btn .icon-edit {
+  background-image: url('../../../images/edit.png');
 }
 
 /* Navigation Buttons (bestehend) */
