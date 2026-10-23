@@ -13,7 +13,12 @@
         versionHistory: {
           canGoPrev: false,
           canGoNext: false
-        }
+        },
+        // Für die Wissensbasis: letzte KI-Ausgabe, um Nutzer-Änderungen zu erkennen
+        lastAiVersionId: null,
+        lastAiText: null,
+        learned: false,
+        learnButton: null
       });
     }
     return textareaSessions.get(textarea);
@@ -82,8 +87,18 @@
     complexInput.placeholder = 'z.B. "Fülle die Tabelle aus" oder "Erweitere die Beschreibung"...';
     complexInput.style.display = 'none';
 
+    // Lernen-Button (Wissensbasis) – erscheint, wenn der Nutzer eine KI-Korrektur verändert
+    const learnButton = document.createElement('a');
+    learnButton.href = 'javascript:void(0)';
+    learnButton.className = 'ai-action-btn ai-learn-button';
+    learnButton.innerHTML = '<span class="icon icon-learn"></span><span class="btn-text">Aus Änderung lernen</span>';
+    learnButton.title = 'Die KI vergleicht ihren Vorschlag mit Ihrer Fassung und merkt sich Regeln/Begriffe für künftige Korrekturen';
+    learnButton.style.display = 'none';
+    sessionData.learnButton = learnButton;
+
     buttonGroup.appendChild(correctionButton);
     buttonGroup.appendChild(complexButton);
+    buttonGroup.appendChild(learnButton);
     buttonGroup.appendChild(prevButton);
     buttonGroup.appendChild(nextButton);
     buttonGroup.appendChild(versionSelect);
@@ -101,6 +116,36 @@
     complexButton.addEventListener('click', function() {
       handleComplexRequest(textarea, complexButton, complexInput, prevButton, nextButton);
     });
+
+    learnButton.addEventListener('click', function() {
+      handleLearn(textarea, learnButton, false);
+    });
+
+    // Nutzer-Änderungen nach einer KI-Korrektur erkennen -> Lernen anbieten
+    textarea.addEventListener('input', function() {
+      const data = getSessionData(textarea);
+      if (!data.lastAiVersionId || data.learned) return;
+      const changed = textarea.value.trim() !== (data.lastAiText || '').trim();
+      learnButton.style.display = changed ? 'inline-flex' : 'none';
+    });
+
+    // Automatisches Lernen beim Absenden des Formulars
+    const form = textarea.closest('form');
+    if (form && !form.dataset.aiLearnHooked) {
+      form.dataset.aiLearnHooked = '1';
+      form.addEventListener('submit', function() {
+        form.querySelectorAll('textarea').forEach(function(ta) {
+          if (!textareaSessions.has(ta)) return;
+          const data = textareaSessions.get(ta);
+          const settings = window.redmineAISettings || {};
+          if (settings.knowledge_auto_learn !== '1' || settings.knowledge_base_enabled === '0') return;
+          if (!data.lastAiVersionId || data.learned) return;
+          if (ta.value.trim() === (data.lastAiText || '').trim()) return;
+          sendLearnRequest(data.lastAiVersionId, ta.value, true);
+          data.learned = true;
+        });
+      });
+    }
 
     prevButton.addEventListener('click', function() {
       handleNavigateVersion(textarea, 'prev', prevButton, nextButton);
@@ -259,6 +304,10 @@
       }
       
       sessionData.versionId = data.version_id;
+      sessionData.lastAiVersionId = data.version_id;
+      sessionData.lastAiText = data.improved_text || '';
+      sessionData.learned = false;
+      if (sessionData.learnButton) sessionData.learnButton.style.display = 'none';
       
       // Buttons aktualisieren
       prevButton.style.display = 'inline-block';
@@ -524,6 +573,53 @@
     .catch(error => {
       console.error('Fehler beim Speichern der Version:', error);
     });
+  }
+
+  // Wissensbasis: aus der Nutzer-Änderung lernen
+  function handleLearn(textarea, learnButton, silent) {
+    const sessionData = getSessionData(textarea);
+    if (!sessionData.lastAiVersionId) return;
+    const finalText = textarea.value;
+    if (finalText.trim() === (sessionData.lastAiText || '').trim()) {
+      if (!silent) alert('Der Text entspricht noch dem KI-Vorschlag – es gibt nichts zu lernen.');
+      return;
+    }
+
+    setButtonLoading(learnButton, true);
+    sendLearnRequest(sessionData.lastAiVersionId, finalText, false)
+      .then(data => {
+        setButtonLoading(learnButton, false);
+        if (!data || data.error || data.success === false) {
+          if (!silent) alert('Lernen fehlgeschlagen: ' + ((data && data.error) || 'Unbekannter Fehler'));
+          return;
+        }
+        sessionData.learned = true;
+        learnButton.style.display = 'none';
+        if (!silent) {
+          if (data.entries && data.entries.length > 0) {
+            const lines = data.entries.map(e => '• [' + e.category + '] ' + e.content);
+            alert('Gelernt (' + data.entries.length + '):\n\n' + lines.join('\n'));
+          } else {
+            alert('Keine verallgemeinerbare Regel erkannt – die Änderung war wohl rein inhaltlich.');
+          }
+        }
+      })
+      .catch(error => {
+        setButtonLoading(learnButton, false);
+        if (!silent) alert('Lernen fehlgeschlagen: ' + error.message);
+      });
+  }
+
+  function sendLearnRequest(versionId, finalText, keepalive) {
+    const formData = new FormData();
+    formData.append('version_id', versionId);
+    formData.append('final_text', finalText);
+    return fetch('/ai_knowledge/learn', {
+      method: 'POST',
+      body: formData,
+      keepalive: !!keepalive,
+      headers: { 'X-CSRF-Token': getCSRFToken() }
+    }).then(response => response.json());
   }
 
   function detectFieldType(textarea) {

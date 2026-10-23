@@ -1,0 +1,21 @@
+<%= error_messages_for 'entry' %>
+
+<div class="box tabular">
+  <p>
+    <%= f.select :category, AiKnowledgeEntry::CATEGORY_LABELS.map { |k, v| [v, k] }, label: :field_category, required: true %>
+  </p>
+  <p>
+    <%= f.text_area :content, rows: 4, style: 'width: 90%;', label: :label_ai_knowledge_content, required: true %>
+    <em class="info"><%= l(:text_ai_knowledge_content_hint) %></em>
+  </p>
+  <p>
+    <%= f.text_area :reason, rows: 2, style: 'width: 90%;', label: :label_ai_knowledge_reason %>
+  </p>
+  <p>
+    <%= f.select :project_id, project_tree_options_for_select(Project.active.sorted.to_a, selected: @entry.project), { label: :field_project, include_blank: l(:label_ai_knowledge_global) } %>
+    <em class="info"><%= l(:text_ai_knowledge_project_hint) %></em>
+  </p>
+  <p>
+    <%= f.check_box :active, label: :label_ai_knowledge_active %>
+  </p>
+</div>

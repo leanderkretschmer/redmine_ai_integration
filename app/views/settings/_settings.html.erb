@@ -297,6 +297,18 @@
       padding-top: 20px;
     }
 
+    .claude-oauth-block { margin-left: 0; }
+    .claude-oauth-status { margin: 10px 0 8px 180px; }
+    .claude-oauth-actions { margin-left: 180px; margin-bottom: 8px; }
+    .claude-oauth-code-block { margin: 10px 0 10px 180px; padding: 10px; background: #fff; border: 1px dashed #bbb; border-radius: 4px; }
+    .claude-oauth-hint { margin: 0 0 8px; font-size: 12px; color: #444; line-height: 1.6; }
+    .claude-oauth-advanced { margin-left: 180px; margin-top: 6px; font-size: 12px; }
+    .claude-oauth-advanced summary { cursor: pointer; color: #555; }
+    .claude-oauth-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: bold; color: #fff; margin-right: 6px; }
+    .claude-oauth-badge-ok { background: #3c9a3c; }
+    .claude-oauth-badge-off { background: #999; }
+    .task-models-section h4, .knowledge-section h4 { margin-top: 0; }
+
     .advanced-settings-content h4 {
       margin-left: 180px; /* Reduced from 230px */
     }
@@ -391,20 +403,155 @@
     </div>
 
     <div id="claude_settings" class="provider_settings provider-settings-section" style="<%= 'display:none;' unless @settings['ai_provider'] == 'claude' %>">
+      <% oauth_status = RedmineAiIntegration::ClaudeOauth.status %>
       <h4>Anthropic Claude</h4>
       <p>
-        <%= label_tag 'settings[claude_api_key]', 'Claude API Key', style: 'float: left; width: 180px;' %>
-        <%= password_field_tag 'settings[claude_api_key]', @settings['claude_api_key'], size: 60 %>
-        <em class="info">Ihr Anthropic Claude API-Schlüssel</em>
+        <%= label_tag 'settings[claude_auth_mode]', 'Anmeldung', style: 'float: left; width: 180px;' %>
+        <%= select_tag 'settings[claude_auth_mode]',
+            options_for_select([
+              ['API-Key (Console)', 'api_key'],
+              ['Mit Claude-Konto anmelden (OAuth)', 'oauth']
+            ], @settings['claude_auth_mode'] || 'api_key'),
+            id: 'claude_auth_mode_select' %>
+        <em class="info">API-Key aus der Claude Console oder Anmeldung mit einem Claude-Konto (z. B. Pro/Max/Team) ohne eigenen Schlüssel</em>
       </p>
+
+      <div id="claude_api_key_block" style="<%= 'display:none;' if @settings['claude_auth_mode'] == 'oauth' %>">
+        <p>
+          <%= label_tag 'settings[claude_api_key]', 'Claude API Key', style: 'float: left; width: 180px;' %>
+          <%= password_field_tag 'settings[claude_api_key]', @settings['claude_api_key'], size: 60 %>
+          <em class="info">Ihr Anthropic Claude API-Schlüssel (platform.claude.com → API keys)</em>
+        </p>
+      </div>
+
+      <div id="claude_oauth_block" class="claude-oauth-block" style="<%= 'display:none;' unless @settings['claude_auth_mode'] == 'oauth' %>">
+        <p>
+          <%= label_tag 'settings[claude_oauth_account_type]', 'Kontotyp', style: 'float: left; width: 180px;' %>
+          <%= select_tag 'settings[claude_oauth_account_type]',
+              options_for_select([
+                ['Claude.ai-Konto (claude.ai)', 'claude'],
+                ['Console-/Entwicklerkonto (console.anthropic.com)', 'console']
+              ], @settings['claude_oauth_account_type'] || 'claude') %>
+          <em class="info">Bestimmt, über welche Anmeldeseite der Login läuft</em>
+        </p>
+        <p>
+          <%= label_tag 'settings[claude_oauth_redirect_mode]', 'Rückweg', style: 'float: left; width: 180px;' %>
+          <%= select_tag 'settings[claude_oauth_redirect_mode]',
+              options_for_select([
+                ['Code manuell einfügen (empfohlen)', 'manual'],
+                ['Automatische Weiterleitung zu Redmine', 'callback']
+              ], @settings['claude_oauth_redirect_mode'] || 'manual') %>
+          <em class="info">Die automatische Weiterleitung funktioniert nur, wenn die Redmine-Callback-URL für die Client-ID freigegeben ist</em>
+        </p>
+
+        <div class="claude-oauth-status" id="claude_oauth_status" data-logged-in="<%= oauth_status[:logged_in] ? '1' : '0' %>">
+          <% if oauth_status[:logged_in] %>
+            <span class="claude-oauth-badge claude-oauth-badge-ok">Verbunden</span>
+            <span id="claude_oauth_account_label"><%= oauth_status[:account].presence || 'Claude-Konto' %></span>
+            <% if oauth_status[:expires_at] %>
+              <em class="info" style="display:inline; margin-left: 8px;">Token gültig bis <%= format_time(Time.parse(oauth_status[:expires_at])) %> (wird automatisch erneuert)</em>
+            <% end %>
+          <% else %>
+            <span class="claude-oauth-badge claude-oauth-badge-off">Nicht verbunden</span>
+          <% end %>
+        </div>
+
+        <div class="claude-oauth-actions">
+          <button type="button" id="claude_oauth_login_btn" class="load-models-btn">Mit Claude anmelden</button>
+          <button type="button" id="claude_oauth_logout_btn" class="load-models-btn" style="background:#c9534f; border-color:#b3443f; <%= 'display:none;' unless oauth_status[:logged_in] %>">Abmelden</button>
+          <span id="claude_oauth_message" style="margin-left: 10px;"></span>
+        </div>
+
+        <div id="claude_oauth_code_block" class="claude-oauth-code-block" style="display:none;">
+          <p class="claude-oauth-hint">
+            1. Es wurde ein neues Browser-Fenster geöffnet (falls nicht: <a href="#" id="claude_oauth_open_link" target="_blank" rel="noopener">hier klicken</a>).<br>
+            2. Melden Sie sich dort mit Ihrem Claude-Konto an und bestätigen Sie den Zugriff.<br>
+            3. Kopieren Sie den angezeigten Code und fügen Sie ihn hier ein:
+          </p>
+          <div class="model-selection-group">
+            <input type="text" id="claude_oauth_code_input" size="70" placeholder="Code aus dem Anmeldefenster einfügen (Format: code#state)" autocomplete="off">
+            <button type="button" id="claude_oauth_exchange_btn" class="load-models-btn">Code einlösen</button>
+          </div>
+        </div>
+
+        <details class="claude-oauth-advanced">
+          <summary>Erweitert: eigene OAuth-Client-ID</summary>
+          <p>
+            <%= label_tag 'settings[claude_oauth_client_id]', 'Client-ID', style: 'float: left; width: 180px;' %>
+            <%= text_field_tag 'settings[claude_oauth_client_id]', @settings['claude_oauth_client_id'], size: 50, placeholder: RedmineAiIntegration::ClaudeOauth::DEFAULT_CLIENT_ID %>
+            <em class="info">Leer lassen für den Standard-Client</em>
+          </p>
+          <p>
+            <%= label_tag 'settings[claude_oauth_scopes]', 'Scopes', style: 'float: left; width: 180px;' %>
+            <%= text_field_tag 'settings[claude_oauth_scopes]', @settings['claude_oauth_scopes'], size: 50, placeholder: RedmineAiIntegration::ClaudeOauth::DEFAULT_SCOPES %>
+          </p>
+        </details>
+        <em class="info" style="display:block; margin-top: 8px;">
+          Hinweis: Die Anmeldung mit einem Claude-Abo-Konto unterliegt den Nutzungsbedingungen von Anthropic. Für Produktivbetrieb empfiehlt Anthropic einen API-Key bzw. ein Console-Konto.
+        </em>
+      </div>
+
       <p>
-        <%= label_tag 'settings[claude_model]', 'Claude Modell', style: 'float: left; width: 180px;' %>
+        <%= label_tag 'settings[claude_model]', 'Claude Standardmodell', style: 'float: left; width: 180px;' %>
         <div class="model-selection-group" style="margin-left: 180px;">
-          <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-3-sonnet-20240229', size: 40, id: 'claude_model_input' %>
+          <%= text_field_tag 'settings[claude_model]', @settings['claude_model'] || 'claude-opus-5-5', size: 40, id: 'claude_model_input' %>
           <button type="button" id="claude_load_models" class="load-models-btn">Modelle laden</button>
           <select id="claude_model_select" style="display:none;"></select>
         </div>
-        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden"</em>
+        <em class="info" style="margin-left: 180px; display: block; margin-top: 5px;">Verfügbare Modelle nach Klick auf "Modelle laden". Empfohlen: claude-opus-5-5 (Standard), claude-sonnet-5-5 (schneller/günstiger), claude-haiku-5-5 (sehr günstig)</em>
+      </p>
+    </div>
+
+    <div class="provider-settings-section task-models-section">
+      <h4>Modell pro Aufgabe</h4>
+      <em class="info" style="display:block; margin-bottom: 10px;">
+        Optional: eigenes Modell des gewählten Providers je Aufgabe. Leer = Standardmodell des Providers.
+        So kann z. B. die Korrektur mit einem schnellen Modell laufen, während Chat und Lernen ein stärkeres Modell nutzen.
+      </em>
+      <% [
+        ['model_correction', 'Korrektur', 'Button „Korrektur“ an Textfeldern'],
+        ['model_complex',    'Erweitern', 'Button „Erweitern“ mit eigener Anweisung'],
+        ['model_chat',       'KI-Assistent (Chat)', 'Chat in der Ticket-Sidebar'],
+        ['model_learning',   'Wissens-Extraktion', 'Lernen aus Nutzer-Korrekturen für die Wissensbasis']
+      ].each do |key, label, hint| %>
+        <p>
+          <%= label_tag "settings[#{key}]", label, style: 'float: left; width: 180px;' %>
+          <div class="model-selection-group" style="margin-left: 180px;">
+            <%= text_field_tag "settings[#{key}]", @settings[key], size: 40, id: "#{key}_input", placeholder: 'Standardmodell des Providers' %>
+            <button type="button" class="load-models-btn task-model-load" data-target="<%= key %>">Modelle laden</button>
+            <select id="<%= key %>_select" style="display:none;"></select>
+          </div>
+          <em class="info" style="margin-left: 180px; display: block; margin-top: 3px;"><%= hint %></em>
+        </p>
+      <% end %>
+    </div>
+
+    <div class="provider-settings-section knowledge-section">
+      <% kb_stats = AiKnowledgeEntry.stats rescue { total: 0, active: 0, learned: 0, unreviewed: 0 } %>
+      <h4>Wissensbasis (lernt aus Korrekturen)</h4>
+      <em class="info" style="display:block; margin-bottom: 10px;">
+        Die Wissensbasis enthält Regeln, Fachbegriffe und Stilvorgaben, die das Modell zusätzlich zum System-Prompt berücksichtigt.
+        Ändert ein Nutzer eine KI-Korrektur nachträglich, wird daraus gelernt: Das Modell vergleicht seinen Vorschlag mit der finalen Fassung
+        und legt verallgemeinerbare Erkenntnisse ab, damit derselbe Fehler nicht wieder passiert.
+      </em>
+      <div class="ai-checkbox-row" style="padding-left: 180px;">
+        <%= hidden_field_tag 'settings[knowledge_base_enabled]', '0', id: nil %>
+        <%= check_box_tag 'settings[knowledge_base_enabled]', '1', @settings['knowledge_base_enabled'] != '0', id: 'knowledge_base_enabled_toggle' %>
+        <span onclick="document.getElementById('knowledge_base_enabled_toggle').click()" style="cursor:pointer;">Wissensbasis in Prompts einbinden</span>
+      </div>
+      <div class="ai-checkbox-row" style="padding-left: 180px;">
+        <%= hidden_field_tag 'settings[knowledge_auto_learn]', '0', id: nil %>
+        <%= check_box_tag 'settings[knowledge_auto_learn]', '1', @settings['knowledge_auto_learn'] == '1', id: 'knowledge_auto_learn_toggle' %>
+        <span onclick="document.getElementById('knowledge_auto_learn_toggle').click()" style="cursor:pointer;">Automatisch lernen, wenn Nutzer eine KI-Korrektur vor dem Speichern verändern</span>
+      </div>
+      <p>
+        <%= label_tag 'settings[knowledge_max_entries]', 'Max. Einträge im Prompt', style: 'float: left; width: 180px;' %>
+        <%= number_field_tag 'settings[knowledge_max_entries]', @settings['knowledge_max_entries'] || '40', min: 1, max: 500, size: 6 %>
+        <em class="info">Begrenzt Token-Verbrauch; projektspezifische und häufig bestätigte Einträge werden bevorzugt</em>
+      </p>
+      <p style="margin-left: 180px;">
+        <strong><%= kb_stats[:active] %></strong> aktive Einträge (<%= kb_stats[:learned] %> gelernt, <%= kb_stats[:unreviewed] %> ungeprüft) –
+        <%= link_to 'Wissensbasis verwalten', ai_knowledge_path, class: 'icon icon-book' %>
       </p>
     </div>
 
@@ -542,6 +689,122 @@
       }
     });
 
+    // Claude: Umschaltung API-Key / OAuth
+    const authModeSelect = document.getElementById('claude_auth_mode_select');
+    if (authModeSelect) {
+      const apiBlock = document.getElementById('claude_api_key_block');
+      const oauthBlock = document.getElementById('claude_oauth_block');
+      authModeSelect.addEventListener('change', function() {
+        const oauth = this.value === 'oauth';
+        apiBlock.style.display = oauth ? 'none' : 'block';
+        oauthBlock.style.display = oauth ? 'block' : 'none';
+      });
+    }
+
+    // Claude OAuth-Anmeldung
+    const oauthLoginBtn = document.getElementById('claude_oauth_login_btn');
+    const oauthLogoutBtn = document.getElementById('claude_oauth_logout_btn');
+    const oauthExchangeBtn = document.getElementById('claude_oauth_exchange_btn');
+    const oauthMessage = document.getElementById('claude_oauth_message');
+    const oauthCodeBlock = document.getElementById('claude_oauth_code_block');
+
+    function oauthSay(text, color) {
+      if (!oauthMessage) return;
+      oauthMessage.textContent = text;
+      oauthMessage.style.color = color || '#666';
+    }
+
+    function oauthPost(url, body) {
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(body || {})
+      }).then(r => r.json());
+    }
+
+    function oauthRenderStatus(status) {
+      const box = document.getElementById('claude_oauth_status');
+      if (!box) return;
+      if (status.logged_in) {
+        box.innerHTML = '<span class="claude-oauth-badge claude-oauth-badge-ok">Verbunden</span> <span>' +
+          (status.account || 'Claude-Konto') + '</span>' +
+          (status.expires_at ? ' <em class="info" style="display:inline; margin-left:8px;">Token gültig bis ' + new Date(status.expires_at).toLocaleString() + ' (wird automatisch erneuert)</em>' : '');
+        box.dataset.loggedIn = '1';
+        if (oauthLogoutBtn) oauthLogoutBtn.style.display = 'inline-block';
+      } else {
+        box.innerHTML = '<span class="claude-oauth-badge claude-oauth-badge-off">Nicht verbunden</span>';
+        box.dataset.loggedIn = '0';
+        if (oauthLogoutBtn) oauthLogoutBtn.style.display = 'none';
+      }
+    }
+
+    if (oauthLoginBtn) {
+      oauthLoginBtn.addEventListener('click', function() {
+        oauthLoginBtn.disabled = true;
+        oauthSay('Anmeldung wird vorbereitet...');
+        // Die aktuell gewählten (evtl. ungespeicherten) OAuth-Optionen mitgeben
+        oauthPost('/ai_auth/claude/start', {})
+          .then(data => {
+            oauthLoginBtn.disabled = false;
+            if (!data.success) { oauthSay('Fehler: ' + data.error, 'red'); return; }
+            const popup = window.open(data.authorize_url, '_blank', 'noopener');
+            const link = document.getElementById('claude_oauth_open_link');
+            if (link) link.href = data.authorize_url;
+            if (data.redirect_mode === 'callback') {
+              oauthSay('Nach der Anmeldung werden Sie automatisch zurück zu Redmine geleitet.', '#666');
+            } else {
+              oauthCodeBlock.style.display = 'block';
+              document.getElementById('claude_oauth_code_input').focus();
+              oauthSay(popup ? 'Anmeldefenster geöffnet.' : 'Popup blockiert – bitte Link im Hinweis nutzen.', popup ? '#666' : 'orange');
+            }
+          })
+          .catch(err => { oauthLoginBtn.disabled = false; oauthSay('Fehler: ' + err.message, 'red'); });
+      });
+    }
+
+    if (oauthExchangeBtn) {
+      oauthExchangeBtn.addEventListener('click', function() {
+        const code = document.getElementById('claude_oauth_code_input').value.trim();
+        if (!code) { oauthSay('Bitte zuerst den Code einfügen.', 'orange'); return; }
+        oauthExchangeBtn.disabled = true;
+        oauthSay('Code wird eingelöst...');
+        oauthPost('/ai_auth/claude/exchange', { code: code })
+          .then(data => {
+            oauthExchangeBtn.disabled = false;
+            if (!data.success) { oauthSay('Fehler: ' + data.error, 'red'); return; }
+            oauthCodeBlock.style.display = 'none';
+            document.getElementById('claude_oauth_code_input').value = '';
+            oauthRenderStatus(data.status);
+            oauthSay('Claude-Konto verbunden. Vergessen Sie nicht, die Einstellungen zu speichern.', 'green');
+          })
+          .catch(err => { oauthExchangeBtn.disabled = false; oauthSay('Fehler: ' + err.message, 'red'); });
+      });
+    }
+
+    if (oauthLogoutBtn) {
+      oauthLogoutBtn.addEventListener('click', function() {
+        if (!confirm('Claude-Konto wirklich trennen?')) return;
+        oauthPost('/ai_auth/claude/logout', {})
+          .then(data => {
+            if (data.success) { oauthRenderStatus(data.status); oauthSay('Abgemeldet.', '#666'); }
+            else oauthSay('Fehler: ' + data.error, 'red');
+          });
+      });
+    }
+
+    // Modell pro Aufgabe: Modelle des aktuell gewählten Providers laden
+    document.querySelectorAll('.task-model-load').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const key = button.dataset.target;
+        loadModelsInto(providerSelect.value, button,
+          document.getElementById(key + '_input'),
+          document.getElementById(key + '_select'));
+      });
+    });
+
     // Modelle laden Buttons
     const loadModelButtons = {
       openai: document.getElementById('openai_load_models'),
@@ -601,7 +864,7 @@
         } else {
           statusSpan.textContent = 'Fehler';
           statusSpan.style.color = 'red';
-          messageDiv.innerHTML = '<strong style="color: red;">' + (data.message || 'Verbindung fehlgeschlagen') + '</strong>';
+          messageDiv.innerHTML = '<strong style="color: red;">' + (data.error || data.message || 'Verbindung fehlgeschlagen') + '</strong>';
           modelsDiv.innerHTML = '';
         }
       })
@@ -750,10 +1013,14 @@
   }
 
   function loadModelsForProvider(provider) {
-    const button = document.getElementById(provider + '_load_models');
-    const input = document.getElementById(provider + '_model_input');
-    const select = document.getElementById(provider + '_model_select');
-    
+    loadModelsInto(provider,
+      document.getElementById(provider + '_load_models'),
+      document.getElementById(provider + '_model_input'),
+      document.getElementById(provider + '_model_select'));
+  }
+
+  function loadModelsInto(provider, button, input, select) {
+    if (!button || !input || !select) return;
     button.disabled = true;
     button.textContent = 'Laden...';
 
@@ -772,24 +1039,25 @@
 
       if (data.success && data.models && data.models.length > 0) {
         select.innerHTML = '';
+        const current = input.value.trim();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '– Modell wählen –';
+        select.appendChild(placeholder);
         data.models.forEach(function(model) {
           const option = document.createElement('option');
           option.value = model;
           option.textContent = model;
+          if (model === current) option.selected = true;
           select.appendChild(option);
         });
-        
+
         select.style.display = 'inline-block';
-        select.addEventListener('change', function() {
-          input.value = this.value;
-        });
-        
-        // Automatisch erstes Modell auswählen
-        if (data.models.length > 0) {
-          input.value = data.models[0];
-        }
+        select.onchange = function() {
+          if (this.value) input.value = this.value;
+        };
       } else {
-        alert('Keine Modelle gefunden oder Verbindungsfehler');
+        alert(data.error || 'Keine Modelle gefunden oder Verbindungsfehler');
       }
     })
     .catch(error => {

@@ -151,3 +151,39 @@
     border-color: #ddd;
   }
 }
+
+
+/* Lernen-Button (Wissensbasis) */
+.ai-learn-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #fff7e0;
+  border: 1px solid #e3b84d;
+  color: #7a5a00;
+  text-decoration: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ai-learn-button:hover {
+  background: #ffefc2;
+  color: #5c4300;
+  text-decoration: none;
+}
+.ai-learn-button .icon-learn {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: none;
+  position: relative;
+}
+.ai-learn-button .icon-learn::before {
+  content: "\1F4A1";
+  font-size: 13px;
+  line-height: 14px;
+}
+.ai-learn-button.disabled {
+  opacity: 0.6;
+}

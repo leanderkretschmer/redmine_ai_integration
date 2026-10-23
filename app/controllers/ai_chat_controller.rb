@@ -21,9 +21,17 @@ class AiChatController < ApplicationController
     # Hole AI-Antwort
     settings = Setting.plugin_redmine_ai_integration
     provider = settings['ai_provider']
-    
+    client = RedmineAiIntegration::AiClient.new(settings)
+
+    if (config_error = client.configuration_error)
+      return render json: { error: config_error }, status: 400
+    end
+
     begin
-      result = call_ai_for_chat(question, system_prompt, provider, settings)
+      # Wissensbasis (Fakten, Terminologie, Regeln des Projekts) einbinden
+      system_prompt = RedmineAiIntegration::KnowledgeBase.augment_prompt(system_prompt, project_id: issue.project_id)
+
+      result = client.complete(system_prompt, question, task: :chat)
       answer = result[:text]
       token_info = result[:tokens] || {}
       
@@ -37,7 +45,7 @@ class AiChatController < ApplicationController
         question: question,
         answer: answer,
         context_used: context.truncate(1000), # Begrenze Kontext-Länge
-        model_used: settings["#{provider}_model"] || provider,
+        model_used: result[:model] || provider,
         journal_id_referenced: journal_references.first&.id,
         provider: provider,
         prompt_tokens: token_info[:prompt] || 0,
@@ -115,192 +123,6 @@ class AiChatController < ApplicationController
     PROMPT
     
     system_instruction
-  end
-  
-  def call_ai_for_chat(question, system_prompt, provider, settings)
-    case provider
-    when 'openai'
-      call_openai_chat(question, system_prompt, settings)
-    when 'gemini'
-      call_gemini_chat(question, system_prompt, settings)
-    when 'claude'
-      call_claude_chat(question, system_prompt, settings)
-    when 'ollama'
-      call_ollama_chat(question, system_prompt, settings)
-    else
-      raise "Unbekannter Provider: #{provider}"
-    end
-  end
-  
-  def call_openai_chat(question, system_prompt, settings)
-    require 'net/http'
-    require 'json'
-    
-    uri = URI('https://api.openai.com/v1/chat/completions')
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    request['Authorization'] = "Bearer #{settings['openai_api_key']}"
-    
-    body = {
-      model: settings['openai_model'] || 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: system_prompt },
-        { role: 'user', content: question }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    }
-    
-    request.body = body.to_json
-    response = http.request(request)
-    
-    if response.code == '200'
-      result = JSON.parse(response.body)
-      {
-        text: result['choices'][0]['message']['content'].strip,
-        tokens: {
-          prompt: result.dig('usage', 'prompt_tokens'),
-          completion: result.dig('usage', 'completion_tokens'),
-          total: result.dig('usage', 'total_tokens')
-        }
-      }
-    else
-      raise "OpenAI API Fehler: #{response.code} - #{response.body}"
-    end
-  end
-  
-  def call_gemini_chat(question, system_prompt, settings)
-    require 'net/http'
-    require 'json'
-    
-    api_key = settings['gemini_api_key']
-    model = settings['gemini_model'] || 'gemini-1.5-pro'
-    model = model.to_s.split('/').last # Normalisiere Modellname
-    
-    uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    
-    body = {
-      contents: [{
-        parts: [{
-          text: "#{system_prompt}\n\nFrage: #{question}"
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2000
-      }
-    }
-    
-    request.body = body.to_json
-    response = http.request(request)
-    
-    if response.code == '200'
-      result = JSON.parse(response.body)
-      {
-        text: result.dig('candidates', 0, 'content', 'parts', 0, 'text').strip,
-        tokens: {
-          prompt: result.dig('usageMetadata', 'promptTokenCount'),
-          completion: result.dig('usageMetadata', 'candidatesTokenCount'),
-          total: result.dig('usageMetadata', 'totalTokenCount')
-        }
-      }
-    else
-      raise "Gemini API Fehler: #{response.code} - #{response.body}"
-    end
-  end
-  
-  def call_claude_chat(question, system_prompt, settings)
-    require 'net/http'
-    require 'json'
-    
-    uri = URI('https://api.anthropic.com/v1/messages')
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    request['x-api-key'] = settings['claude_api_key']
-    request['anthropic-version'] = '2023-06-01'
-    
-    body = {
-      model: settings['claude_model'] || 'claude-3-sonnet-20240229',
-      max_tokens: 2000,
-      system: system_prompt,
-      messages: [{
-        role: 'user',
-        content: question
-      }]
-    }
-    
-    request.body = body.to_json
-    response = http.request(request)
-    
-    if response.code == '200'
-      result = JSON.parse(response.body)
-      {
-        text: result.dig('content', 0, 'text').strip,
-        tokens: {
-          prompt: result.dig('usage', 'input_tokens'),
-          completion: result.dig('usage', 'output_tokens'),
-          total: (result.dig('usage', 'input_tokens').to_i + result.dig('usage', 'output_tokens').to_i)
-        }
-      }
-    else
-      raise "Claude API Fehler: #{response.code} - #{response.body}"
-    end
-  end
-  
-  def call_ollama_chat(question, system_prompt, settings)
-    require 'net/http'
-    require 'json'
-    
-    url = settings['ollama_url'] || 'http://localhost:11434'
-    url = url.chomp('/')
-    use_ssl = url.start_with?('https://')
-    
-    uri = URI("#{url}/api/generate")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = use_ssl
-    http.open_timeout = 30
-    http.read_timeout = 120
-    
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    
-    body = {
-      model: settings['ollama_model'] || 'llama2',
-      prompt: "#{system_prompt}\n\nFrage: #{question}",
-      stream: false,
-      options: {
-        temperature: 0.7,
-        num_predict: 2000
-      }
-    }
-    
-    request.body = body.to_json
-    response = http.request(request)
-    
-    if response.code == '200'
-      result = JSON.parse(response.body)
-      {
-        text: result['response'].strip,
-        tokens: {
-          prompt: result['prompt_eval_count'],
-          completion: result['eval_count'],
-          total: (result['prompt_eval_count'].to_i + result['eval_count'].to_i)
-        }
-      }
-    else
-      raise "Ollama API Fehler: #{response.code} - #{response.body}"
-    end
   end
   
   def extract_journal_references_from_answer(answer, issue)

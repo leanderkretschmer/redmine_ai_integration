@@ -1,0 +1,13 @@
+.ai-kb-stats { display: flex; gap: 18px; align-items: center; margin: 10px 0 14px; flex-wrap: wrap; }
+.ai-kb-stat { background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px; padding: 6px 12px; font-size: 13px; }
+.ai-kb-stat strong { font-size: 16px; margin-right: 4px; }
+.ai-kb-stat-warn { background: #fff6e0; border-color: #f0c36d; }
+.ai-kb-table td.ai-kb-content { max-width: 520px; white-space: normal; }
+.ai-kb-reason { color: #777; font-size: 11px; margin-top: 3px; }
+.ai-kb-inactive td { color: #999; }
+.ai-kb-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; color: #fff; background: #888; white-space: nowrap; }
+.ai-kb-badge-rule { background: #3b7dd8; }
+.ai-kb-badge-terminology { background: #7a4fc9; }
+.ai-kb-badge-style { background: #2a9d8f; }
+.ai-kb-badge-fact { background: #e07a2f; }
+.ai-kb-badge-unreviewed { background: #d9a400; margin-left: 6px; }

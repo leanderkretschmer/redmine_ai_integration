@@ -10,6 +10,9 @@ Ein Redmine 6 Plugin, das KI-gestützte Textverbesserung für Kommentare und Tic
 - **Rückgängig-Funktion**: Originaltext wiederherstellen
 - **Lade-Animation**: Visuelles Feedback während der Verarbeitung
 - **Anpassbarer System-Prompt**: Definiere, wie der Text verbessert werden soll
+- **Claude-Konto-Anmeldung**: Claude wahlweise per API-Key oder per OAuth-Login mit einem Claude-Konto nutzen (ohne eigenen Schlüssel)
+- **Modell pro Aufgabe**: Eigenes Modell für Korrektur, Erweitern, Chat und Wissens-Extraktion
+- **Lernende Wissensbasis**: Regeln, Terminologie und Stilvorgaben, die bei jeder Anfrage mitgegeben werden; lernt automatisch, wenn Nutzer eine KI-Korrektur nachbessern
 
 ## Installation
 
@@ -33,8 +36,22 @@ Ein Redmine 6 Plugin, das KI-gestützte Textverbesserung für Kommentare und Tic
 - Standard-Modell: gemini-pro
 
 ### Anthropic Claude
-- API Key von https://console.anthropic.com/
-- Standard-Modell: claude-3-sonnet-20240229
+- **API-Key**: von https://platform.claude.com/settings/keys
+- **Claude-Konto (OAuth)**: In den Plugin-Einstellungen „Mit Claude-Konto anmelden“ wählen → „Mit Claude anmelden“ → im Anmeldefenster bestätigen → angezeigten Code (`code#state`) einfügen → „Code einlösen“. Tokens liegen in der Tabelle `ai_oauth_tokens` und werden automatisch erneuert. Die Anmeldung mit einem Abo-Konto unterliegt den Nutzungsbedingungen von Anthropic.
+- Standard-Modell: claude-opus-5-5 (Alternativen: claude-sonnet-5-5, claude-haiku-5-5)
+- Für Claude-Modelle ab 4.6 wird `output_config.effort` gesetzt (Korrektur/Erweitern: low, Chat/Lernen: medium)
+
+## Modell pro Aufgabe
+
+Unter „Modell pro Aufgabe“ kann je Aufgabe (Korrektur, Erweitern, Chat, Wissens-Extraktion) ein Modell des gewählten Providers hinterlegt werden. Leer = Standardmodell des Providers. „Modelle laden“ holt die Modellliste vom Provider.
+
+## Wissensbasis
+
+- Verwaltung: Administration → KI-Wissensbasis (`/ai_knowledge`)
+- Einträge haben Kategorie (Regel, Terminologie, Stil, Fakt), optional ein Projekt (sonst global), Quelle (manuell/gelernt) und einen Treffer-Zähler.
+- Aktive Einträge werden als Abschnitt „Wissensbasis“ an den System-Prompt von Korrektur, Erweitern und Chat angehängt (Limit über „Max. Einträge im Prompt“).
+- **Lernen aus Fehlern**: Nach einer KI-Korrektur wird die unveränderte KI-Ausgabe in `ai_text_versions.ai_output_text` gespeichert. Ändert der Nutzer den Text, erscheint „Aus Änderung lernen“; bei aktiviertem Auto-Lernen passiert das beim Absenden des Formulars automatisch. Das Modell (Aufgabe „Wissens-Extraktion“) vergleicht Original, KI-Vorschlag und finale Fassung und legt bis zu drei verallgemeinerbare Erkenntnisse als „gelernt/ungeprüft“ ab. Identische Erkenntnisse erhöhen nur den Treffer-Zähler.
+- Gelernte Einträge sind sofort aktiv und sollten in der Verwaltung geprüft werden (Prüfen, Deaktivieren, Löschen; „Ungeprüfte gelernte Einträge löschen“).
 
 ## System-Prompt
 
@@ -63,9 +80,11 @@ Du bist ein professioneller Textkorrektor. Verbessere den folgenden Text, korrig
 
 ## Technische Details
 
-- Versionsdaten werden temporär in `tmp/redmine_ai_integration/` gespeichert
+- Versionen liegen in `ai_text_versions`, Chat-Verlauf in `ai_chat_messages`, Wissensbasis in `ai_knowledge_entries`, OAuth-Tokens in `ai_oauth_tokens`
 - Session-basierte Versionsverwaltung pro Textfeld
-- Automatische Bereinigung beim Speichern
+- Alle Provider-Aufrufe laufen über `RedmineAiIntegration::AiClient` (`lib/redmine_ai_integration/ai_client.rb`); OAuth in `claude_oauth.rb`, Wissensbasis in `knowledge_base.rb`
+- Der Endpunkt `/ai_rewrite/settings` liefert nur unkritische Einstellungen (keine Schlüssel/Tokens)
+- Nach dem Update: `bundle exec rake redmine:plugins:migrate RAILS_ENV=production` (Migrationen 005–007)
 
 ## Lizenz
 

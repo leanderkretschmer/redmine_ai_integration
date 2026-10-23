@@ -1,0 +1,101 @@
+<% html_title l(:label_ai_knowledge_base) %>
+
+<div class="contextual">
+  <%= link_to l(:label_ai_knowledge_new), new_ai_knowledge_path, class: 'icon icon-add' %>
+  <%= link_to l(:label_plugin_settings), plugin_settings_path('redmine_ai_integration'), class: 'icon icon-settings' %>
+</div>
+
+<h2><%= l(:label_ai_knowledge_base) %></h2>
+
+<p class="info" style="margin-bottom: 12px;">
+  <%= l(:text_ai_knowledge_intro) %>
+</p>
+
+<div class="ai-kb-stats">
+  <span class="ai-kb-stat"><strong><%= @stats[:total] %></strong> <%= l(:label_ai_knowledge_total) %></span>
+  <span class="ai-kb-stat"><strong><%= @stats[:active] %></strong> <%= l(:label_ai_knowledge_active) %></span>
+  <span class="ai-kb-stat"><strong><%= @stats[:learned] %></strong> <%= l(:label_ai_knowledge_learned) %></span>
+  <span class="ai-kb-stat <%= 'ai-kb-stat-warn' if @stats[:unreviewed] > 0 %>"><strong><%= @stats[:unreviewed] %></strong> <%= l(:label_ai_knowledge_unreviewed) %></span>
+  <% if @stats[:unreviewed] > 0 %>
+    <%= link_to l(:button_ai_knowledge_delete_unreviewed), destroy_learned_ai_knowledge_path, method: :delete,
+          data: { confirm: l(:text_are_you_sure) }, class: 'icon icon-del', style: 'margin-left: 12px;' %>
+  <% end %>
+</div>
+
+<%= form_tag ai_knowledge_path, method: :get, id: 'ai-kb-filter' do %>
+  <fieldset class="collapsible">
+    <legend><%= l(:label_filter_plural) %></legend>
+    <div style="display:flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <label><%= l(:field_category) %>
+        <%= select_tag :category, options_for_select([['', '']] + AiKnowledgeEntry::CATEGORY_LABELS.map { |k, v| [v, k] }, params[:category]) %>
+      </label>
+      <label><%= l(:label_ai_knowledge_source) %>
+        <%= select_tag :source, options_for_select([['', ''], [l(:label_ai_knowledge_source_manual), 'manual'], [l(:label_ai_knowledge_source_learned), 'learned']], params[:source]) %>
+      </label>
+      <label><%= l(:field_status) %>
+        <%= select_tag :active, options_for_select([['', ''], [l(:general_text_Yes), '1'], [l(:general_text_No), '0']], params[:active]) %>
+      </label>
+      <label><%= l(:label_search) %> <%= text_field_tag :q, params[:q], size: 30 %></label>
+      <%= submit_tag l(:button_apply), class: 'small', name: nil %>
+      <%= link_to l(:button_clear), ai_knowledge_path, class: 'icon icon-reload' %>
+    </div>
+  </fieldset>
+<% end %>
+
+<% if @entries.any? %>
+  <div class="autoscroll">
+  <table class="list ai-kb-table">
+    <thead>
+      <tr>
+        <%= sort_header_tag 'category', caption: l(:field_category) %>
+        <th><%= l(:label_ai_knowledge_content) %></th>
+        <th><%= l(:field_project) %></th>
+        <%= sort_header_tag 'source', caption: l(:label_ai_knowledge_source) %>
+        <%= sort_header_tag 'hit_count', caption: l(:label_ai_knowledge_hits) %>
+        <%= sort_header_tag 'active', caption: l(:field_status) %>
+        <%= sort_header_tag 'updated_at', caption: l(:field_updated_on) %>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @entries.each do |entry| %>
+        <tr class="<%= cycle('odd', 'even') %> <%= 'ai-kb-inactive' unless entry.active? %>">
+          <td><span class="ai-kb-badge ai-kb-badge-<%= entry.category %>"><%= entry.category_label %></span></td>
+          <td class="ai-kb-content">
+            <%= entry.content %>
+            <% if entry.reason.present? %>
+              <div class="ai-kb-reason" title="<%= l(:label_ai_knowledge_reason) %>"><%= entry.reason %></div>
+            <% end %>
+            <% if entry.issue_id %>
+              <div class="ai-kb-reason"><%= l(:label_ai_knowledge_learned_from) %> <%= link_to "##{entry.issue_id}", issue_path(entry.issue_id) %></div>
+            <% end %>
+          </td>
+          <td><%= entry.project ? link_to_project(entry.project) : content_tag(:em, l(:label_ai_knowledge_global)) %></td>
+          <td>
+            <%= entry.learned? ? l(:label_ai_knowledge_source_learned) : l(:label_ai_knowledge_source_manual) %>
+            <% unless entry.reviewed? %><span class="ai-kb-badge ai-kb-badge-unreviewed"><%= l(:label_ai_knowledge_unreviewed) %></span><% end %>
+          </td>
+          <td style="text-align:center;"><%= entry.hit_count %></td>
+          <td><%= entry.active? ? l(:general_text_Yes) : l(:general_text_No) %></td>
+          <td><%= format_time(entry.updated_at) %></td>
+          <td class="buttons">
+            <% unless entry.reviewed? %>
+              <%= link_to l(:button_ai_knowledge_review), review_ai_knowledge_path(entry), method: :post, class: 'icon icon-checked' %>
+            <% end %>
+            <%= link_to (entry.active? ? l(:button_ai_knowledge_deactivate) : l(:button_ai_knowledge_activate)), toggle_ai_knowledge_path(entry), method: :post, class: entry.active? ? 'icon icon-lock' : 'icon icon-unlock' %>
+            <%= link_to l(:button_edit), edit_ai_knowledge_path(entry), class: 'icon icon-edit' %>
+            <%= link_to l(:button_delete), ai_knowledge_entry_path(entry), method: :delete, data: { confirm: l(:text_are_you_sure) }, class: 'icon icon-del' %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+  <span class="pagination"><%= pagination_links_full @entry_pages, @entry_count %></span>
+<% else %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% end %>
+
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'ai_knowledge', plugin: 'redmine_ai_integration' %>
+<% end %>

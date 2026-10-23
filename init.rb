@@ -1,8 +1,8 @@
 Redmine::Plugin.register :redmine_ai_integration do
   name 'Redmine AI Integration Plugin'
   author 'Leander Kretschmer'
-  description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen mit Chat-Assistent'
-  version '0.0.28'
+  description 'KI-gestützte Textverbesserung für Kommentare und Ticket-Beschreibungen mit Chat-Assistent, Claude-Konto-Anmeldung und lernender Wissensbasis'
+  version '0.1.0'
   url 'https://github.com/leanderkretschmer/redmine_ai_integration.git'
   author_url 'https://github.com/leanderkretschmer'
 
@@ -16,7 +16,22 @@ Redmine::Plugin.register :redmine_ai_integration do
     'gemini_api_key' => '',
     'gemini_model' => 'gemini-1.5-pro',
     'claude_api_key' => '',
-    'claude_model' => 'claude-3-sonnet-20240229',
+    'claude_model' => 'claude-opus-5-5',
+    # Claude-Authentifizierung: 'api_key' oder 'oauth' (Anmeldung mit Claude-Konto)
+    'claude_auth_mode' => 'api_key',
+    'claude_oauth_account_type' => 'claude',   # 'claude' (claude.ai-Konto) oder 'console' (Console-Konto)
+    'claude_oauth_redirect_mode' => 'manual',  # 'manual' (Code einfügen) oder 'callback' (Weiterleitung)
+    'claude_oauth_client_id' => '',
+    'claude_oauth_scopes' => '',
+    # Modell pro Aufgabe (leer = Standardmodell des Providers)
+    'model_correction' => '',
+    'model_complex' => '',
+    'model_chat' => '',
+    'model_learning' => '',
+    # Wissensbasis
+    'knowledge_base_enabled' => '1',
+    'knowledge_auto_learn' => '1',
+    'knowledge_max_entries' => '40',
     'slim_response' => '0',
     'embedded_system_prompt' => 'Rolle: Du bist ein hocheffizienter, professioneller Lektor und Korrektor für deutsche Texte. 
 
@@ -54,4 +69,7 @@ Antwort-Regeln (STRENG):
 
 Ziel: Biete dem User die schnellstmögliche Antwort, ohne dass er das gesamte Ticket selbst lesen muss.'
   }, partial: 'settings/settings'
+
+  menu :admin_menu, :ai_knowledge, { controller: 'ai_knowledge', action: 'index' },
+       caption: :label_ai_knowledge_base, html: { class: 'icon icon-book' }
 end
