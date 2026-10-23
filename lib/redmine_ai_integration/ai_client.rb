@@ -287,12 +287,27 @@ module RedmineAiIntegration
       response = http.request(request)
       unless response.code == '200'
         Rails.logger.error "#{label} API Fehler - Code: #{response.code}, Body: #{response.body.to_s[0, 1000]}"
-        raise Error, "#{label} API Fehler: #{response.code} - #{response.body.to_s[0, 500]}"
+        raise Error, "#{label} API Fehler: #{response.code} - #{response.body.to_s[0, 500]}#{oauth_block_hint(label, response)}"
       end
 
       JSON.parse(response.body)
     rescue JSON::ParserError => e
       raise Error, "#{label} lieferte ungültiges JSON: #{e.message}"
+    end
+
+    # Anthropic beantwortet Inferenz-Anfragen mit Abo-Tokens (claude.ai Pro/Max) außerhalb von
+    # Claude Code mit einem generischen 429 "rate_limit_error" / "Error". Das ist kein echtes Limit.
+    def oauth_block_hint(label, response)
+      return '' unless label == 'Claude' && claude_oauth?
+      return '' unless response.code == '429' || response.code == '401' || response.code == '403'
+
+      body = response.body.to_s
+      generic = body.include?('"message":"Error"') || body =~ /OAuth authentication is currently not supported/i
+      return '' unless generic || response.code != '429'
+
+      ' – Hinweis: Anthropic lässt Inferenz mit Tokens von Claude-Abo-Konten (claude.ai Pro/Max) derzeit nur in ' \
+      'Claude Code zu. Bitte in den Plugin-Einstellungen auf „API-Key“ umstellen (Schlüssel unter ' \
+      'platform.claude.com/settings/keys) oder ein Console-/Entwicklerkonto verwenden.'
     end
 
     def get_json(uri, headers, label, timeout: 30)
